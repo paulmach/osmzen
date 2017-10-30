@@ -1,0 +1,950 @@
+all:
+  - water
+  - earth
+  - places
+  - landuse
+  - roads
+  - buildings
+  - pois
+  - boundaries
+  - transit
+
+sources:
+
+  # NOTE: each source represents a query to the database
+  # within each source, a list of templates can be used
+  # the templates will be combined with a sql `union all` in between
+  # therefore, it's necessary that the query results of each template
+  # have the same types
+
+  # NOTE: end_zoom is exclusive
+
+  planet_osm_polygon:
+    - template: planet_osm_polygon.jinja2
+      # landuse and pois start at 4
+      start_zoom: 4
+  planet_osm_line:
+    - template: planet_osm_line.jinja2
+      # transit starts at 5
+      start_zoom: 5
+  planet_osm_point:
+    # earth and places start at zoom 0
+    - template: planet_osm_point.jinja2
+
+  ne:
+    ## places
+    # ne_10m_populated_places
+    - template: ne-places.jinja2
+
+    ## boundaries
+
+    # ne_110m_admin_0_boundary_lines_land
+    - template: ne-boundaries-110m.jinja2
+      end_zoom: 2
+
+    # ne_50m_admin_0_boundary_lines_land
+    # ne_50m_admin_1_states_provinces_lines
+    - template: ne-boundaries-50m.jinja2
+      start_zoom: 2
+      end_zoom: 5
+
+    # ne_10m_admin_0_boundary_lines_land
+    # ne_10m_admin_0_boundary_lines_map_units
+    # ne_10m_admin_1_states_provinces_lines
+    - template: ne-boundaries-10m.jinja2
+      start_zoom: 5
+      end_zoom: 8
+
+    ## earth
+
+    # ne_110m_land
+    - template: ne-earth-110m.jinja2
+      end_zoom: 2
+
+    # ne_50m_land
+    - template: ne-earth-50m.jinja2
+      start_zoom: 2
+      end_zoom: 5
+
+    # ne_10m_land
+    - template: ne-earth-10m.jinja2
+      start_zoom: 5
+      end_zoom: 8
+
+    ## landuse
+
+    # ne_50m_urban_areas
+    - template: ne-landuse-50m.jinja2
+      start_zoom: 4
+      end_zoom: 6
+
+    # ne_10m_urban_areas
+    - template: ne-landuse-10m.jinja2
+      start_zoom: 6
+      end_zoom: 10
+
+    ## roads
+
+    # ne_10m_roads
+    - template: ne-roads.jinja2
+      start_zoom: 5
+      end_zoom: 8
+
+    ## water
+
+    # ne_110m_ocean
+    # ne_110m_lakes
+    # ne_110m_coastline
+    # ne_110m_lakes
+    - template: ne-water-110m.jinja2
+      end_zoom: 2
+
+    # ne_50m_ocean
+    # ne_50m_lakes
+    # ne_50m_coastline
+    # ne_50m_lakes
+    - template: ne-water-50m.jinja2
+      start_zoom: 2
+      end_zoom: 5
+
+    # ne_10m_ocean
+    # ne_10m_lakes
+    # ne_10m_coastline
+    # ne_10m_lakes
+    - template: ne-water-10m.jinja2
+      start_zoom: 5
+      end_zoom: 8
+
+    # ne_50m_playas
+    - template: ne-water-playas-50m.jinja2
+      start_zoom: 4
+      end_zoom: 5
+
+    # ne_10m_playas
+    - template: ne-water-playas-10m.jinja2
+      start_zoom: 5
+      end_zoom: 8
+
+  osmdata:
+
+    - template: osmdata-earth.jinja2
+      start_zoom: 8
+
+    - template: osmdata-water.jinja2
+      start_zoom: 8
+
+  wof:
+    - template: wof.jinja2
+      start_zoom: 11
+
+layers:
+  water:
+    template: water.jinja2
+    geometry_types: [Point, MultiPoint, Polygon, MultiPolygon, LineString, MultiLineString]
+    simplify_before_intersect: true
+    simplify_start: 9
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.water_tunnel
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.water
+    area-inclusion-threshold: 1
+  earth:
+    template: earth.jinja2
+    geometry_types: [Point, MultiPoint, Polygon, MultiPolygon, LineString, MultiLineString]
+    simplify_before_intersect: true
+    simplify_start: 9
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.earth
+    area-inclusion-threshold: 1
+  places:
+    template: places.jinja2
+    geometry_types: [Point, MultiPoint]
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.place_population_int
+      - vectordatasource.transform.calculate_default_place_min_zoom
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.places
+    area-inclusion-threshold: 1
+  landuse:
+    template: landuse.jinja2
+    geometry_types: [Polygon, MultiPolygon, LineString, MultiLineString]
+    simplify_start: 4
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.normalize_tourism_kind
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.normalize_operator_values
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.landuse
+    area-inclusion-threshold: 1
+  roads:
+    template: roads.jinja2
+    geometry_types: [LineString, MultiLineString]
+    simplify_start: 8
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.parse_layer_as_float
+      - vectordatasource.transform.road_classifier
+      - vectordatasource.transform.road_oneway
+      - vectordatasource.transform.road_abbreviate_name
+      - vectordatasource.transform.route_name
+      - vectordatasource.transform.normalize_aerialways
+      - vectordatasource.transform.normalize_cycleway
+      - vectordatasource.transform.add_is_bicycle_related
+      - vectordatasource.transform.merge_networks_from_tags
+      - vectordatasource.transform.extract_network_information
+      - vectordatasource.transform.choose_most_important_network
+      - vectordatasource.transform.road_trim_properties
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.roads
+    area-inclusion-threshold: 1
+  buildings:
+    template: buildings.jinja2
+    clip_factor: 3.0
+    geometry_types: [Point, MultiPoint, Polygon, MultiPolygon]
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.parse_layer_as_float
+      - vectordatasource.transform.building_height
+      - vectordatasource.transform.building_min_height
+      - vectordatasource.transform.synthesize_volume
+      - vectordatasource.transform.normalize_tourism_kind
+      - vectordatasource.transform.building_trim_properties
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.buildings
+    area-inclusion-threshold: 1
+  pois:
+    template: pois.jinja2
+    geometry_types: [Point, MultiPoint, Polygon, MultiPolygon]
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.add_iata_code_to_airports
+      - vectordatasource.transform.normalize_tourism_kind
+      - vectordatasource.transform.normalize_social_kind
+      - vectordatasource.transform.normalize_medical_kind
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.add_uic_ref
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.remove_zero_area
+      - vectordatasource.transform.make_representative_point
+      - vectordatasource.transform.height_to_meters
+      - vectordatasource.transform.pois_capacity_int
+      - vectordatasource.transform.elevation_to_meters
+      - vectordatasource.transform.normalize_operator_values
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.pois
+    area-inclusion-threshold: 1
+  boundaries:
+    template: boundaries.jinja2
+    geometry_types: [Polygon, MultiPolygon, LineString, MultiLineString]
+    simplify_before_intersect: true
+    simplify_start: 8
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.admin_level_as_int
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    area-inclusion-threshold: 1
+  transit:
+    template: transit.jinja2
+    geometry_types: [LineString, MultiLineString, Polygon, MultiPolygon]
+    transform:
+      - vectordatasource.transform.tags_create_dict
+      - vectordatasource.transform.tags_name_i18n
+      - vectordatasource.transform.add_uic_ref
+      - vectordatasource.transform.tags_remove
+      - vectordatasource.transform.add_id_to_properties
+      - vectordatasource.transform.detect_osm_relation
+      - vectordatasource.transform.route_name
+      - vectordatasource.transform.parse_layer_as_float
+      - vectordatasource.transform.remove_feature_id
+      - vectordatasource.transform.truncate_min_zoom_to_2dp
+    sort: vectordatasource.sort.transit
+    area-inclusion-threshold: 1
+post_process:
+  - fn: vectordatasource.transform.numeric_min_filter
+    params:
+      source_layer: buildings
+      mode: any
+      filters:
+        13: { area: 1600, volume: 300000 }
+        14: { area:  100, volume: 200000 }
+        15: { area:  100, volume: 100000 }
+
+  - fn: vectordatasource.transform.build_fence
+    params:
+      base_layer: landuse
+      start_zoom: 16
+      prop_transform:
+        kind: true
+        id: true
+        source: true
+        area: true
+        min_zoom: true
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: landuse
+      start_zoom: 4
+      properties: [barrier]
+
+  # sort key
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/sort_rank/landuse.csv
+    params:
+      source_layer: landuse
+      target_value_type: int
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/sort_rank/roads.csv
+    params:
+      source_layer: roads
+      target_value_type: int
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/sort_rank/earth.csv
+    params:
+      source_layer: earth
+      target_value_type: int
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/sort_rank/boundaries.csv
+    params:
+      source_layer: boundaries
+      target_value_type: int
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/sort_rank/buildings.csv
+    params:
+      source_layer: buildings
+      target_value_type: int
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/sort_rank/transit.csv
+    params:
+      source_layer: transit
+      target_value_type: int
+  # this needs to run before the water sort_rank csv matcher
+  - fn: vectordatasource.transform.exterior_boundaries
+    params:
+      base_layer: water
+      start_zoom: 9
+      prop_transform:
+        kind: true
+        id: true
+        source: true
+        boundary: [true]
+        area: true
+      snap_tolerance: 0.125
+  # have to do the water properties matching _after_ exterior boundaries
+  # as it depends on having the "boundary: yes" property available.
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/sort_rank/water.csv
+    params:
+      source_layer: water
+      target_value_type: int
+
+  # assign `scale_rank`
+  - fn: vectordatasource.transform.csv_match_properties
+    resources:
+      matcher:
+        type: file
+        init_fn: vectordatasource.transform.CSVMatcher
+        path: spreadsheets/scale_rank/buildings.csv
+    params:
+      source_layer: buildings
+      target_value_type: int
+
+  # drop all polygonal features that don't meet the minimum area
+  # threshold. this depends on the mz_min_pixels property to be set on
+  # features first
+  - fn: vectordatasource.transform.drop_features_mz_min_pixels
+    params:
+      property: mz_min_pixels
+      source_layers:
+        # all layers that have polygonal geometries
+        - boundaries
+        - buildings
+        - earth
+        - landuse
+        - transit
+        - water
+
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      properties: [layer]
+  - fn: vectordatasource.transform.overlap
+    params:
+      base_layer: buildings
+      cutting_layer: landuse
+      attribute: kind
+      target_attribute: landuse_kind
+      cutting_attrs: { sort_key: 'sort_rank', reverse: True }
+  - fn: vectordatasource.transform.admin_boundaries
+    params:
+      base_layer: boundaries
+      start_zoom: 8
+
+  # drop names on boundary lines (country, region, macroregion) except zoom 7 from Natural Earth
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: boundaries
+      start_zoom: 0
+      end_zoom: 7
+      properties: [name]
+
+  - fn: vectordatasource.transform.handle_label_placement
+    params:
+      layers:
+        - water
+        - earth
+      location_property: mz_label_placement
+      label_property_name: label_placement
+      label_property_value: true
+      label_where: >-
+        'name' in properties
+      label_where: { name: true }
+
+  - fn: vectordatasource.transform.handle_label_placement
+    params:
+      layers:
+        - landuse
+      start_zoom: 15
+      location_property: mz_label_placement
+      label_property_name: label_placement
+      label_property_value: true
+      label_where: >-
+        'name' in properties or
+        ('sport' in properties and properties.get('kind', 'rock') not in ('rock', 'stone'))
+      label_where:
+        any:
+        - name: true
+        - all:
+            sport: true
+            not: { kind: [ 'rock', 'stone' ] }
+
+  # drop mz_label placement at zooms we don't apply handle_label_placement
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: landuse
+      start_zoom: 0
+      end_zoom: 15
+      properties: [mz_label_placement]
+      geom_types: [Polygon, MultiPolygon]
+
+  - fn: vectordatasource.transform.handle_label_placement
+    params:
+      layers:
+        - buildings
+      start_zoom: 16
+      location_property: mz_label_placement
+      label_property_name: label_placement
+      label_property_value: true
+      label_where: >-
+        'name' in properties
+      label_where: { name: true }
+
+  # drop mz_label placement at zooms we don't apply handle_label_placement
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: buildings
+      start_zoom: 0
+      end_zoom: 16
+      properties: [mz_label_placement]
+      geom_types: [Polygon, MultiPolygon]
+
+  - fn: vectordatasource.transform.remove_duplicate_features
+    params:
+      source_layer: landuse
+      end_zoom: 16
+      property_keys: [name, kind]
+      geometry_types: [Point]
+      min_distance: 256.0
+
+  # drop the names and less important additional tags of small landuse polygons
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: landuse
+      start_zoom: 4
+      end_zoom: 13
+      properties: [name, sport, religion, surface]
+      where: >-
+        pixel_area > area
+      geom_types: [Polygon, MultiPolygon]
+
+  - fn: vectordatasource.transform.drop_features_where
+    params:
+      source_layer: water
+      start_zoom: 3
+      where: >-
+        'label_placement' not in properties and kind in ('sea', 'bay', 'strait', 'fjord')
+      where:
+        label_placement: false
+        kind: ['sea', 'bay', 'strait', 'fjord']
+  - fn: vectordatasource.transform.drop_features_where
+    params:
+      source_layer: earth
+      start_zoom: 0
+      where: >-
+        'label_placement' not in properties and kind in
+        ('archipelago', 'island', 'islet', 'continent', 'valley', 'ridge')
+      where:
+        label_placement: false
+        kind: ['archipelago', 'island', 'islet', 'continent', 'valley', 'ridge']
+
+  # merge water and earth polygons, see https://github.com/tilezen/vector-datasource/issues/1106
+  - fn: vectordatasource.transform.merge_polygon_features
+    params:
+      source_layer: earth
+  - fn: vectordatasource.transform.merge_polygon_features
+    params:
+      source_layer: water
+
+  - fn: vectordatasource.transform.generate_address_points
+    params:
+      source_layer: buildings
+      start_zoom: 16
+  - fn: vectordatasource.transform.remove_duplicate_features
+    params:
+      source_layer: buildings
+      end_zoom: 16
+      property_keys: [name, kind]
+      geometry_types: [Point]
+      min_distance: 256.0
+  - fn: vectordatasource.transform.remove_duplicate_features
+    params:
+      source_layer: pois
+      end_zoom: 16
+      property_keys: [name, kind]
+      geometry_types: [Point]
+      min_distance: 256.0
+  - fn: vectordatasource.transform.drop_features_where
+    params:
+      source_layer: landuse
+      start_zoom: 6
+      where: >-
+        properties.get('mz_is_building') is True and
+        properties.get('label_placement') is None
+      where:
+        - osm_tags:
+          - any:
+            - all:
+              - building: true
+              - not: { building: 'no' }
+            - all:
+              - "building:part": true
+              - not: { "building:part": 'no' }
+        - label_placement: false
+  - fn: vectordatasource.transform.merge_duplicate_stations
+    params:
+      source_layer: pois
+      end_zoom: 16
+  - fn: vectordatasource.transform.normalize_station_properties
+    params:
+      source_layer: pois
+  - fn: vectordatasource.transform.rank_features
+    params:
+      source_layer: pois
+      items_matching:
+        kind: station
+      rank_key: kind_tile_rank
+  - fn: vectordatasource.transform.rank_features
+    params:
+      source_layer: places
+      items_matching:
+        kind: [neighbourhood, microhood, macrohood]
+      rank_key: kind_tile_rank
+      start_zoom: 11
+  - fn: vectordatasource.transform.rank_features
+    params:
+      source_layer: pois
+      items_matching:
+        kind: [peak, volcano]
+      rank_key: kind_tile_rank
+      start_zoom: 9
+  - fn: vectordatasource.transform.remove_duplicate_features
+    params:
+      source_layers: [pois, landuse, buildings]
+      end_zoom: 16
+      property_keys: [name]
+      geometry_types: [Point]
+      min_distance: 64.0
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 15
+      properties: [is_bridge, is_tunnel]
+      where: >-
+        (kind == 'path' and zoom < 15) or
+        (kind in ['minor_road', 'major_road', 'highway', 'rail'] and zoom < 13)
+  # drop certain road properties at lower zooms
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 12
+      properties:
+        - bicycle
+        - colour
+        - foot
+        - horse
+        - motor_vehicle
+        - operator
+        - route          # NVK (2017425): this is a suspicious tag
+        - route_name     # NVK (2017425): this is a suspicious tag
+        - sac_scale
+        - state
+        - symbol
+        - tracktype
+        - type           # NVK (2017425): this is a suspicious tag
+  # drop certain road properties at lower zooms
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 14
+      properties:
+        - all_bicycle_networks
+        - all_bicycle_shield_texts
+        - all_walking_networks
+        - all_walking_shield_texts
+        - all_bus_networks
+        - all_bus_shield_texts
+  # drop certain road properties at lower zooms
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 15
+      properties:
+        - ascent
+        - crossing
+        - descent
+        - description
+        - distance
+        - incline
+        - oneway
+        - oneway_bicycle
+        - ramp
+        - ramp_bicycle
+        - roundtrip
+        - segregated
+        - sidewalk
+        - sidewalk_left
+        - sidewalk_right
+        - sport
+        - trail_visibility
+  # drop name and other properties on early paths to
+  # allow more line merging (use walking network for labeling)
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 12
+      properties:
+        - name
+        - ref
+      where: >-
+        kind == 'path'
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 15
+      properties:
+        - name
+        - ref
+        - network
+        - shield_text
+        - all_networks
+        - all_shield_texts
+        - bus_network
+        - bus_shield_text
+      where: >-
+        (kind == 'rail' and zoom < 15) or
+        (kind == 'minor_road' and zoom < 14) or
+        (kind == 'major_road' and zoom <  7)
+  # this is a patch because we still want to drop name, network from major_road
+  # features between zoom 7 and 10
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 7
+      end_zoom: 11
+      properties:
+        - name
+        - all_networks
+        - all_shield_texts
+      where: >-
+        kind == 'major_road'
+  # this is a patch to get rid of name, but keep ref & network, for highways
+  # when zoom < 11.
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 7
+      end_zoom: 11
+      properties: [name]
+      where: >-
+        kind == 'highway'
+  # drop name, ref and the multi-shield properties, but keep single-shield
+  # properties, when z<=6 (i.e: NE data)
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 7
+      properties:
+        - name
+        - ref
+        - all_networks
+        - all_shield_texts
+        - walking_network
+        - walking_shield_text
+        - bicycle_network
+        - bicycle_shield_text
+      where: >-
+        kind == 'highway'
+  # drop non-road shield stuff a good deal earlier.
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 11
+      properties:
+        - all_bicycle_networks
+        - all_bicycle_shield_texts
+        - all_walking_networks
+        - all_walking_shield_texts
+        - bus_network
+        - bus_shield_text
+        - all_bus_networks
+        - all_bus_shield_texts
+      where: >-
+        kind == 'highway'
+  # drop walking network related properties on all roads early
+  # as paths are only brought in at zoom 9 and these properties
+  # on other kinds would prevent merging at zoom 8 and earlier
+  - fn: vectordatasource.transform.drop_properties
+    params:
+      source_layer: roads
+      start_zoom: 0
+      end_zoom: 9
+      properties:
+        - walking_network
+        - walking_shield_text
+  - fn: vectordatasource.transform.update_parenthetical_properties
+    params:
+      source_layer: pois
+      values: ['closed', 'historical']
+      target_min_zoom: 17
+      drop_below_zoom: 16
+  - fn: vectordatasource.transform.update_parenthetical_properties
+    params:
+      source_layer: buildings
+      values: ['closed', 'historical']
+      target_min_zoom: 17
+      drop_below_zoom: 16
+  - fn: vectordatasource.transform.merge_line_features
+    params:
+      source_layer: transit
+      start_zoom: 0
+      end_zoom: 16
+  # only keep all stations below z12, then cut it down to the top few.
+  - fn: vectordatasource.transform.keep_n_features
+    params:
+      source_layer: transit
+      start_zoom: 9
+      end_zoom: 12
+      items_matching: { kind: station }
+      max_items: 20
+  - fn: vectordatasource.transform.keep_n_features
+    params:
+      source_layer: transit
+      start_zoom: 12
+      end_zoom: 14
+      items_matching: { kind: station }
+      max_items: 30
+  - fn: vectordatasource.transform.keep_n_features
+    params:
+      source_layer: pois
+      start_zoom: 9
+      end_zoom: 16
+      items_matching: { kind: [peak, volcano] }
+      max_items: 5
+  - fn: vectordatasource.transform.drop_properties_with_prefix
+    params: {prefix: mz_}
+
+  - fn: vectordatasource.transform.merge_building_features
+    params:
+      source_layer: buildings
+      start_zoom: 13
+      end_zoom: 15
+      quantize:
+        13: vectordatasource.transform.quantize_height_round_nearest_10_meters
+        14: vectordatasource.transform.quantize_height_round_nearest_5_meters
+      drop:
+        - name
+        - addr_housenumber
+        - addr_street
+      max_merged_features: 1000
+
+  - fn: vectordatasource.transform.drop_small_inners
+    params:
+      end_zoom: 14
+      source_layers: [landuse, water]
+      pixel_area: 0.1
+
+  - fn: vectordatasource.transform.simplify_and_clip
+    params: {simplify_before: 16}
+
+  - fn: vectordatasource.transform.intercut
+    params:
+      base_layer: roads
+      cutting_layer: landuse
+      attribute: kind
+      target_attribute: landuse_kind
+      cutting_attrs: { sort_key: 'sort_rank', reverse: True }
+  # merge any remaining polygons by their properties.
+  - fn: vectordatasource.transform.merge_polygon_features
+    params:
+      source_layer: landuse
+      start_zoom: 4
+      end_zoom: 13
+
+  - fn: vectordatasource.transform.merge_line_features
+    params:
+      source_layer: roads
+      start_zoom: 8
+      end_zoom: 16
+
+  - fn: vectordatasource.transform.simplify_layer
+    params:
+      source_layer: roads
+      start_zoom: 8
+      end_zoom: 16
+      tolerance: 1.0
+
+  - fn: vectordatasource.transform.buildings_unify
+    params:
+      source_layer: buildings
+      start_zoom: 15
+
+  - fn: vectordatasource.transform.palettize_colours
+    params:
+      layer: transit
+      attribute: colour_name
+      colours:
+        aqua: [0, 255, 255]
+        aquamarine: [127, 255, 212]
+        black: [0, 0, 0]
+        blue: [0, 0, 255]
+        brown: [165, 42, 42]
+        crimson: [220, 20, 60]
+        darkgrey: [64, 64, 64]
+        darkorchid: [153, 50, 204]
+        darkred: [139, 0, 0]
+        darkseagreen: [143, 188, 143]
+        dodgerblue: [30, 144, 255]
+        fuchsia: [255, 0, 255]
+        gainsboro: [220, 220, 220]
+        gold: [255, 215, 0]
+        goldenrod: [218, 165, 32]
+        green: [0, 128, 0]
+        grey: [128, 128, 128]
+        hotpink: [255, 105, 180]
+        indigo: [75, 0, 130]
+        khaki: [240, 230, 140]
+        lightblue: [173, 216, 230]
+        lightcoral: [240, 128, 128]
+        lightgreen: [144, 238, 144]
+        lightteal: [0, 153, 170]
+        lime: [0, 255, 0]
+        limegreen: [50, 205, 50]
+        mediumpurple: [147, 112, 219]
+        mediumseagreen: [60, 179, 113]
+        mediumturquoise: [72, 209, 204]
+        navy: [0, 0, 128]
+        olivedrab: [107, 142, 35]
+        orange: [255, 165, 0]
+        orangered: [255, 69, 0]
+        peru: [205, 133, 63]
+        pink: [255, 192, 203]
+        plum: [221, 160, 221]
+        purple: [128, 0, 128]
+        red: [255, 0, 0]
+        royalblue: [65, 105, 225]
+        sandybrown: [244, 164, 96]
+        silver: [192, 192, 192]
+        steelblue: [70, 130, 180]
+        tan: [210, 180, 140]
+        teal: [0, 128, 128]
+        tomato: [255, 99, 71]
+        violet: [238, 130, 238]
+        white: [255, 255, 255]
+        yellow: [255, 255, 0]
+        yellowgreen: [154, 205, 50]

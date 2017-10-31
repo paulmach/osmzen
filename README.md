@@ -243,12 +243,15 @@ Note that this whole process can be applied to a single element.
 
 The first two benchmarks evaluate a single element against ALL the filters and outputs
 in that layer. Normally you can stop after the first match and only evaluate that one output.
-The second benchmark is more typical of normal usage and coverts data from a zoom 16 tile.
+The third benchmark is more typical of normal usage and coverts data from a zoom 16 tile.
+The last benchmark leaves out the osm data to GeoJSON step and just does the filtering
+and processing unique to this package.
 
 ```
-BenchmarkBuildings-4   	  200000	      9969 ns/op	    1040 B/op	      42 allocs/op
-BenchmarkPOIs-4        	   10000	    171457 ns/op	    6816 B/op	     450 allocs/op
-BenchmarkFullTile-4    	     100	  11292314 ns/op	 3611916 B/op	   26555 allocs/op
+BenchmarkBuildings-4      200000        9969 ns/op       1040 B/op       42 allocs/op
+BenchmarkPOIs-4            10000      171457 ns/op       6816 B/op      450 allocs/op
+BenchmarkFullTile-4          100    11292314 ns/op    3611916 B/op    26555 allocs/op
+BenchmarkProcessGeoJSON-4    200     8091129 ns/op    1978560 B/op    18319 allocs/op
 ```
 
 These benchmarks were run on a 2017 MacBook Pro with a 3.1 ghz processor and 8 gigs of ram.

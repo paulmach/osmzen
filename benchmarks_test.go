@@ -141,6 +141,37 @@ func BenchmarkFullTile(b *testing.B) {
 	}
 }
 
+func BenchmarkProcessGeoJSON(b *testing.B) {
+	config, err := Load("config/queries.yaml")
+	if err != nil {
+		b.Fatalf("unable to load layer: %v", err)
+	}
+
+	tile := maptile.New(17896, 24450, 16)
+	data := loadFile(b, tile)
+
+	input, err := convertToGeoJSON(data, tile.Bound())
+	if err != nil {
+		b.Fatalf("convert failed: %v", err)
+	}
+
+	ctx := &zenContext{
+		Zoom:  tile.Z,
+		Bound: tile.Bound(),
+		OSM:   data,
+	}
+	ctx.ComputeMembership()
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_, err := config.processGeoJSON(ctx, input, tile.Z)
+		if err != nil {
+			b.Fatalf("procces failure: %v", err)
+		}
+	}
+}
+
 func loadFile(t testing.TB, tile maptile.Tile) *osm.OSM {
 	filename := fmt.Sprintf("testdata/tile-%d-%d-%d.xml", tile.Z, tile.X, tile.Y)
 	if _, err := os.Stat(filename); os.IsNotExist(err) {

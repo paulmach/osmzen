@@ -7,7 +7,7 @@ import (
 
 	"github.com/paulmach/osmzen/filter"
 
-	"github.com/paulmach/orb/geo/geojson"
+	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/osm"
 	"github.com/paulmach/osm/osmgeojson"
 

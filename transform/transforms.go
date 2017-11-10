@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/paulmach/orb/geo/geojson"
-	"github.com/paulmach/orb/project"
+	"github.com/paulmach/orb/geojson"
+	"github.com/paulmach/orb/planar"
 	"github.com/paulmach/osmzen/filter"
 	"github.com/paulmach/osmzen/util"
 	"github.com/paulmach/osmzen/util/streetnames"
@@ -332,12 +332,7 @@ func normalizeAerialways(ctx *filter.Context, feature *geojson.Feature) {
 // representative point. This is a point which should be within the interior of
 // the geometry, which can be important for labelling concave or doughnut-shaped polygons.
 func makeRepresentativePoint(ctx *filter.Context, feature *geojson.Feature) {
-	if ctx.Planar == nil {
-		ctx.Planar = project.ToPlanar(ctx.Geometry, project.Mercator)
-	}
-
-	centroid := ctx.Planar.Centroid()
-	feature.Geometry = project.ToGeo(centroid, project.Mercator)
+	feature.Geometry, _ = planar.CentroidArea(ctx.Geometry)
 }
 
 // addIataCodeToAirports

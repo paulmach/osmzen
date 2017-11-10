@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/paulmach/orb/geo/geojson"
+	"github.com/paulmach/orb/geojson"
 	"github.com/pkg/errors"
 )
 

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/paulmach/orb/geo"
-	"github.com/paulmach/orb/geo/geojson"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geojson"
 )
 
 // A Function is the interface implemented by the compiled
@@ -17,7 +17,7 @@ type Function interface {
 // Context represents request level context for the postprocess functions.
 type Context struct {
 	Zoom  float64 // zoom of the tile request
-	Bound geo.Bound
+	Bound orb.Bound
 }
 
 // CompileContext is the context to help while compiling.

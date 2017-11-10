@@ -5,16 +5,16 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/paulmach/orb"
 	"github.com/paulmach/osmzen/filter"
 	"github.com/paulmach/osmzen/matcher"
 
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/clip"
 	"github.com/paulmach/orb/geo"
-	"github.com/paulmach/orb/geo/geoclip"
-	"github.com/paulmach/orb/geo/geojson"
-	"github.com/paulmach/orb/geo/geowrap"
+	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/maptile"
-	"github.com/paulmach/orb/project"
+	"github.com/paulmach/orb/planar"
+	"github.com/paulmach/orb/wrap"
 
 	"github.com/pkg/errors"
 )
@@ -216,14 +216,14 @@ func (f *handleLabelPlacement) Eval(ctx *Context, layers map[string]*geojson.Fea
 			}
 
 			factor -= 1.0
-			paddedBound := ctx.Bound.Pad(ctx.Bound.Height() * factor / 2)
+			paddedBound := geo.BoundPad(ctx.Bound, geo.BoundHeight(ctx.Bound)*factor/2)
 
 			f.evalLayer(ctx, paddedBound, layer)
 		}
 	}
 }
 
-func (f *handleLabelPlacement) evalLayer(ctx *Context, paddedBound geo.Bound, layer *geojson.FeatureCollection) {
+func (f *handleLabelPlacement) evalLayer(ctx *Context, paddedBound orb.Bound, layer *geojson.FeatureCollection) {
 	end := len(layer.Features)
 	for i := 0; i < end; i++ {
 		feature := layer.Features[i]
@@ -246,13 +246,12 @@ func (f *handleLabelPlacement) evalLayer(ctx *Context, paddedBound geo.Bound, la
 			}
 		}
 
-		centroid := project.ToPlanar(feature.Geometry, project.Mercator).Centroid()
-		geoCentroid := project.Mercator.ToGeo(centroid)
-		if !paddedBound.Contains(geoCentroid) {
+		centroid, _ := planar.CentroidArea(feature.Geometry)
+		if !paddedBound.Contains(centroid) {
 			continue
 		}
 
-		nf := geojson.NewFeature(project.ToGeo(centroid, project.Mercator))
+		nf := geojson.NewFeature(centroid)
 		nf.Properties = feature.Properties.Clone()
 		nf.Properties["label_placement"] = true
 
@@ -413,9 +412,9 @@ func (d *deduplicator) Keep(feature *geojson.Feature) bool {
 		return true
 	}
 
-	point := feature.Geometry.(geo.Point)
+	point := feature.Geometry.(orb.Point)
 	for _, f := range features {
-		dist := point.DistanceFrom(f.Geometry.(geo.Point))
+		dist := geo.Distance(point, f.Geometry.(orb.Point))
 		if dist < d.Distance {
 			return false
 		}
@@ -434,14 +433,14 @@ func (f *removeDuplicateFeatures) Eval(ctx *Context, layers map[string]*geojson.
 	// This is complicate code to figure out an approximate that geo.Distance
 
 	// convert corner of tile to pixels
-	tile := maptile.At(ctx.Bound[0], maptile.Zoom(ctx.Zoom+8))
+	tile := maptile.At(ctx.Bound.Min, maptile.Zoom(ctx.Zoom+8))
 	p1 := tile.Center()
 
 	// move pixel distance and convert back to geo point
 	tile.X += uint32(f.MinDistance)
 
 	// find distance from corner to new point
-	dist := p1.DistanceFrom(tile.Center())
+	dist := geo.Distance(p1, tile.Center())
 
 	deduper := &deduplicator{
 		Distance: dist,
@@ -555,7 +554,7 @@ func compileDropFeaturesWhere(ctx *CompileContext, c *Config) (Function, error) 
 // ClipAndWrapGeometry clips the geometry in the layers, removing features that are
 // clipped out. If possible it'll also wrap open polygon rings around the boundary
 // so they look okay within the context of the boundary.
-func ClipAndWrapGeometry(b geo.Bound, layers map[string]*geojson.FeatureCollection) {
+func ClipAndWrapGeometry(b orb.Bound, layers map[string]*geojson.FeatureCollection) {
 	for _, layer := range layers {
 		at := 0
 		for _, f := range layer.Features {
@@ -569,13 +568,17 @@ func ClipAndWrapGeometry(b geo.Bound, layers map[string]*geojson.FeatureCollecti
 	}
 }
 
-func clipToBound(b geo.Bound, f *geojson.Feature) {
-	f.Geometry = geoclip.Clip(b, f.Geometry)
+func clipToBound(b orb.Bound, f *geojson.Feature) {
+	if p, ok := f.Geometry.(orb.MultiPolygon); ok {
+		f.Geometry = p[1]
+	}
+
+	f.Geometry = clip.Clip(b, f.Geometry)
 	if f.Geometry == nil {
 		return
 	}
 
-	fg, err := geowrap.AroundBound(b, f.Geometry, orb.CCW)
+	fg, err := wrap.AroundBound(b, f.Geometry, orb.CCW)
 	if err != nil {
 		// Ring with endpoints within the bound but don't match.
 		// This must be bad osm data or a bug. TODO: log
@@ -585,14 +588,14 @@ func clipToBound(b geo.Bound, f *geojson.Feature) {
 	f.Geometry = fg
 }
 
-func hasOpenOuterRing(g geo.Geometry) bool {
+func hasOpenOuterRing(g orb.Geometry) bool {
 	switch g := g.(type) {
-	case geo.Polygon:
-		return len(g) > 0 && !g[0].Valid()
-	case geo.MultiPolygon:
+	case orb.Polygon:
+		return len(g) > 0 && !g[0].Closed()
+	case orb.MultiPolygon:
 		// Just checking the first polygon. This is used in label placement
 		// and the centroid calc probably won't result in a good label anyway.
-		return len(g) > 0 && len(g[0]) > 0 && !g[0][0].Valid()
+		return len(g) > 0 && len(g[0]) > 0 && !g[0][0].Closed()
 	}
 
 	return false

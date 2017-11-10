@@ -3,8 +3,8 @@ package filter
 import (
 	"math"
 
-	"github.com/paulmach/orb/geo"
-	"github.com/paulmach/orb/geo/geojson"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/planar"
 	"github.com/paulmach/orb/project"
 	"github.com/paulmach/osm"
@@ -17,8 +17,7 @@ type Context struct {
 	Verbose bool
 
 	FeatureID osm.FeatureID
-	Geometry  geo.Geometry
-	Planar    planar.Geometry
+	Geometry  orb.Geometry
 
 	// To compute ways and/or relations if needed
 	OSM *osm.OSM
@@ -98,19 +97,7 @@ func (ctx *Context) Length() float64 {
 		return ctx.length
 	}
 
-	if ctx.Planar == nil {
-		ctx.Planar = project.ToPlanar(ctx.Geometry, project.Mercator)
-	}
-
-	switch g := ctx.Planar.(type) {
-	case planar.LineString:
-		ctx.length = g.Distance()
-	case planar.Polygon:
-		ctx.length = g[0].Distance()
-	default:
-		ctx.length = 0
-	}
-
+	ctx.computeLengthArea()
 	return ctx.length
 }
 
@@ -121,25 +108,26 @@ func (ctx *Context) Area() float64 {
 		return ctx.area
 	}
 
-	if gt := ctx.Geometry.GeoJSONType(); gt != geojson.Polygon && gt != geojson.MultiPolygon {
-		return 0
-	}
-
-	if ctx.Planar == nil {
-		ctx.Planar = project.ToPlanar(ctx.Geometry, project.Mercator)
-	}
-
-	switch g := ctx.Planar.(type) {
-	case planar.MultiPolygon:
-		ctx.area = g.Area()
-	case planar.Polygon:
-		ctx.area = g.Area()
-	default:
-		ctx.area = 0
-	}
-
-	ctx.area = math.Floor(ctx.area + 0.5)
+	ctx.computeLengthArea()
 	return ctx.area
+}
+
+func (ctx *Context) computeLengthArea() {
+	projected := project.ToPlanar(orb.Clone(ctx.Geometry), project.Mercator)
+
+	ctx.area = planar.Area(projected)
+	ctx.area = math.Floor(ctx.area + 0.5)
+
+	switch g := projected.(type) {
+	case orb.LineString:
+		ctx.length = planar.Length(g)
+	case orb.Polygon:
+		ctx.length = planar.Length(g[0])
+	default:
+		ctx.length = 0
+	}
+
+	return
 }
 
 // Height returns the height of the thing, usually a building.

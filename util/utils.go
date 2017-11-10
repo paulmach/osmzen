@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/paulmach/orb/geo"
-	"github.com/paulmach/orb/geo/geojson"
+	"github.com/paulmach/orb"
+	"github.com/paulmach/orb/geojson"
 )
 
 var (
@@ -111,7 +111,7 @@ func BuildingHeight(height, levels string) (float64, bool) {
 // ReverseLineDirection will reverse the direction of the feature geometry
 // if it's a line string.
 func ReverseLineDirection(feature *geojson.Feature) bool {
-	if ls, ok := feature.Geometry.(geo.LineString); ok {
+	if ls, ok := feature.Geometry.(orb.LineString); ok {
 		ls.Reverse()
 		return true
 	}

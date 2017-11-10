@@ -6,8 +6,9 @@ import (
 	"github.com/paulmach/osmzen/filter"
 	"github.com/paulmach/osmzen/postprocess"
 
+	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/geo"
-	"github.com/paulmach/orb/geo/geojson"
+	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/maptile"
 	"github.com/paulmach/osm"
 	"github.com/paulmach/osm/osmgeojson"
@@ -18,7 +19,7 @@ import (
 // Process will convert OSM data into geojson layers.
 // The bound is used for clipping large geometry and only returning label "points"
 // if they're in the bound.  The zoom is used to do the correct post process filtering.
-func (c *Config) Process(data *osm.OSM, bound geo.Bound, z maptile.Zoom) (map[string]*geojson.FeatureCollection, error) {
+func (c *Config) Process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (map[string]*geojson.FeatureCollection, error) {
 	return c.process(data, bound, z)
 }
 
@@ -43,7 +44,7 @@ func (c *Config) ProcessElement(e osm.Element) (layer string, props geojson.Prop
 	data := &osm.OSM{}
 	data.Append(e)
 
-	layers, err := c.process(data, geo.NewBound(-180, 180, -90, 90), 20)
+	layers, err := c.process(data, orb.Bound{Min: orb.Point{-180, -90}, Max: orb.Point{180, 90}}, 20)
 	if err != nil {
 		return "", nil, err
 	}
@@ -67,7 +68,7 @@ func (c *Config) ProcessElement(e osm.Element) (layer string, props geojson.Prop
 	return "", nil, errors.New("not found")
 }
 
-func (c *Config) process(data *osm.OSM, bound geo.Bound, z maptile.Zoom) (map[string]*geojson.FeatureCollection, error) {
+func (c *Config) process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (map[string]*geojson.FeatureCollection, error) {
 	input, err := convertToGeoJSON(data, bound)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -125,7 +126,7 @@ func (c *Config) processGeoJSON(
 	// Also clipping to exactly the tile boundary may cause problems with showing
 	// outlines along the tile boundary.
 	// https://github.com/tilezen/vector-datasource/issues/197
-	postprocess.ClipAndWrapGeometry(ppctx.Bound, result)
+	// postprocess.ClipAndWrapGeometry(ppctx.Bound, result)
 
 	// remove tags
 	for _, l := range result {
@@ -139,7 +140,7 @@ func (c *Config) processGeoJSON(
 
 // Process will convert OSM data into a feature collection for that layer.
 // The zoom is used to do the correct post process filtering.
-func (l *Layer) Process(data *osm.OSM, bound geo.Bound, z maptile.Zoom) (*geojson.FeatureCollection, error) {
+func (l *Layer) Process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (*geojson.FeatureCollection, error) {
 	input, err := convertToGeoJSON(data, bound)
 	if err != nil {
 		return nil, errors.WithStack(err)
@@ -163,7 +164,7 @@ func (l *Layer) evalFeatures(
 	for _, f := range input.Features {
 		// ways that intersect the tile many have interesting nodes outside the tile.
 		// these nodes become geojson points that we want to skip.
-		if p, ok := f.Geometry.(geo.Point); ok {
+		if p, ok := f.Geometry.(orb.Point); ok {
 			if !ctx.Bound.Contains(p) {
 				continue
 			}
@@ -179,7 +180,7 @@ func (l *Layer) evalFeatures(
 		}
 
 		// big polygons may have pois that are not in the tile.
-		if p, ok := feature.Geometry.(geo.Point); ok {
+		if p, ok := feature.Geometry.(orb.Point); ok {
 			if !ctx.Bound.Contains(p) {
 				continue
 			}
@@ -261,7 +262,7 @@ func (l *Layer) filterMatch(fctx *filter.Context) (*filter.Filter, error) {
 
 type zenContext struct {
 	Zoom               maptile.Zoom
-	Bound              geo.Bound
+	Bound              orb.Bound
 	OSM                *osm.OSM
 	WayMembership      map[osm.NodeID]osm.Ways
 	RelationMembership map[osm.FeatureID]osm.Relations
@@ -297,7 +298,7 @@ func (ctx *zenContext) ComputeMembership() {
 	}
 }
 
-func convertToGeoJSON(data *osm.OSM, bound geo.Bound) (*geojson.FeatureCollection, error) {
+func convertToGeoJSON(data *osm.OSM, bound orb.Bound) (*geojson.FeatureCollection, error) {
 	fc, err := osmgeojson.Convert(data,
 		osmgeojson.IncludeInvalidPolygons(true),
 		osmgeojson.NoID(true),
@@ -313,16 +314,16 @@ func convertToGeoJSON(data *osm.OSM, bound geo.Bound) (*geojson.FeatureCollectio
 	// if just the inners intersect the bounds. The missing outer rings need to be
 	// replaced with the bound. Open outer rings will "cropped and wrapped" towards
 	// the end of the whole process.
-	padded := bound.Pad(bound.Width())
+	padded := geo.BoundPad(bound, geo.BoundWidth(bound))
 	for _, f := range fc.Features {
 		switch g := f.Geometry.(type) {
-		case geo.MultiPolygon:
+		case orb.MultiPolygon:
 			for _, p := range g {
 				if len(p) > 0 && p[0] == nil {
 					p[0] = padded.ToRing()
 				}
 			}
-		case geo.Polygon:
+		case orb.Polygon:
 			if len(g) > 0 && g[0] == nil {
 				g[0] = padded.ToRing()
 			}

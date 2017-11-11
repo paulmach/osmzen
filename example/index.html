@@ -1,0 +1,68 @@
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+    <title>osmzen example</title>
+
+    <link rel="stylesheet" href="https://mapzen.com/js/mapzen.css">
+    <style>
+      body {
+        margin: 0px;
+        border: 0px;
+        padding: 0px;
+      }
+
+      #map {
+        height: 100%;
+        width: 100%;
+        position: absolute;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="map"></div>
+
+    <script src="https://mapzen.com/tangram/0.14/tangram.min.js"></script>
+    <script src="https://mapzen.com/js/mapzen.min.js"></script>
+    <script>
+      var mapzenApiKey = 'mapzen-fozgx4f';
+      var map = L.map('map'),
+          layer = Tangram.leafletLayer({
+            // scene: L.Mapzen.BasemapStyles.BubbleWrap,
+            // scene: L.Mapzen.BasemapStyles.BubbleWrapMoreLabels,
+            // scene: L.Mapzen.BasemapStyles.Cinnabar,
+            scene: L.Mapzen.BasemapStyles.CinnabarMoreLabels,
+            // scene: L.Mapzen.BasemapStyles.Walkabout,
+            // scene: L.Mapzen.BasemapStyles.WalkaboutMoreLabels,
+
+            attribution: '<a href="https://mapzen.com/" target="_blank">Mapzen</a> | &copy; OSM contributors',
+            minZoom: 15,
+            maxZoom: 18,
+          });
+
+      layer.scene.subscribe({
+        load: function (e) {
+          var mapzen = e.config.sources.mapzen;
+          mapzen.url_params.api_key = mapzenApiKey;
+
+          mapzen.type = 'GeoJSON';
+          mapzen.url = window.location.origin + '/tiles/{z}/{x}/{y}.json'
+
+          mapzen.max_zoom = 15;
+          mapzen.max_zoom = 16;
+          mapzen.min_display_zoom = 15;
+          mapzen.max_display_zoom = 18;
+        }
+      });
+
+
+      layer.addTo(map);
+      map.setView([37.82502, -122.25466], 17);
+
+      L.Mapzen.hash({ map: map });
+    </script>
+  </body>
+</html>

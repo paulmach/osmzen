@@ -4,8 +4,7 @@ osmzen [![Build Status](https://travis-ci.org/paulmach/osmzen.png?branch=master)
 This is a port of [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) developed by
 [Mapzen](https://mapzen.com/). It converts [Open Street Map](https://www.openstreetmap.org/) data
 directly into GeoJSON with properties that are understood by [Mapzen house
-styles](https://mapzen.com/products/maps/).
-
+styles](https://mapzen.com/products/maps/). See the [tile server example](example) for a demo.
 
 A Postgres database is not required to evaluate the logic that is originally defined in a combination
 of SQL and Python. This allows for the quick mapping of any OSM element(s) to a `kind`/`kind_detail`

@@ -9,12 +9,11 @@ import (
 	"github.com/paulmach/osmzen/matcher"
 
 	"github.com/paulmach/orb"
-	"github.com/paulmach/orb/clip"
+	"github.com/paulmach/orb/clip/smartclip"
 	"github.com/paulmach/orb/geo"
 	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/maptile"
 	"github.com/paulmach/orb/planar"
-	"github.com/paulmach/orb/wrap"
 
 	"github.com/pkg/errors"
 )
@@ -559,6 +558,9 @@ func ClipAndWrapGeometry(b orb.Bound, layers map[string]*geojson.FeatureCollecti
 		at := 0
 		for _, f := range layer.Features {
 			clipToBound(b, f)
+			if f.Geometry == nil {
+				continue
+			}
 
 			layer.Features[at] = f
 			at++
@@ -569,23 +571,7 @@ func ClipAndWrapGeometry(b orb.Bound, layers map[string]*geojson.FeatureCollecti
 }
 
 func clipToBound(b orb.Bound, f *geojson.Feature) {
-	if p, ok := f.Geometry.(orb.MultiPolygon); ok {
-		f.Geometry = p[1]
-	}
-
-	f.Geometry = clip.Clip(b, f.Geometry)
-	if f.Geometry == nil {
-		return
-	}
-
-	fg, err := wrap.AroundBound(b, f.Geometry, orb.CCW)
-	if err != nil {
-		// Ring with endpoints within the bound but don't match.
-		// This must be bad osm data or a bug. TODO: log
-		return
-	}
-
-	f.Geometry = fg
+	f.Geometry = smartclip.SmartClip(b, f.Geometry, orb.CCW)
 }
 
 func hasOpenOuterRing(g orb.Geometry) bool {

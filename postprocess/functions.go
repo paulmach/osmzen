@@ -205,18 +205,7 @@ func (f *handleLabelPlacement) Eval(ctx *Context, layers map[string]*geojson.Fea
 	for _, l := range f.Layers {
 		layer := layers[l]
 		if layer != nil {
-
-			// padded/clipping bounds,
-			//   1.0 (default) is same bounds.
-			//   3.0 is 3x3 tile centered around tile.
-			factor := f.ClipFactors[l]
-			if factor == 0 {
-				factor = 1.0
-			}
-
-			factor -= 1.0
-			paddedBound := geo.BoundPad(ctx.Bound, geo.BoundHeight(ctx.Bound)*factor/2)
-
+			paddedBound := padBoundByFactor(ctx.Bound, f.ClipFactors[l])
 			f.evalLayer(ctx, paddedBound, layer)
 		}
 	}
@@ -228,7 +217,6 @@ func (f *handleLabelPlacement) evalLayer(ctx *Context, paddedBound orb.Bound, la
 		feature := layer.Features[i]
 
 		fctx := filter.NewContextFromProperties(feature.Properties)
-
 		if !f.Condition.Eval(fctx) {
 			continue
 		}
@@ -553,11 +541,29 @@ func compileDropFeaturesWhere(ctx *CompileContext, c *Config) (Function, error) 
 // ClipAndWrapGeometry clips the geometry in the layers, removing features that are
 // clipped out. If possible it'll also wrap open polygon rings around the boundary
 // so they look okay within the context of the boundary.
-func ClipAndWrapGeometry(b orb.Bound, layers map[string]*geojson.FeatureCollection) {
+func ClipAndWrapGeometry(
+	bound orb.Bound,
+	clipFactors map[string]float64,
+	layers map[string]*geojson.FeatureCollection,
+) {
+	// We clip open polygon (tainted multipolygon relations) to the tile boundary.
+	// Clipping to larger area would result is correct geometry within the bound,
+	// but invalid/overlapping geometry outside which tangram does not render correctly.
+	// https://github.com/tangrams/tangram/issues/613
+	//
+	// Other geometry we clip to a +50% on each side bound. Since input for a tile
+	// currently only includes ways with a node in the tile we need some overlap.
 	for _, layer := range layers {
+		paddedBound := padBoundByFactor(bound, 2.0)
+
 		at := 0
 		for _, f := range layer.Features {
-			clipToBound(b, f)
+			if hasOpenOuterRing(f.Geometry) {
+				clipToBound(bound, f)
+			} else {
+				clipToBound(paddedBound, f)
+			}
+
 			if f.Geometry == nil {
 				continue
 			}
@@ -570,6 +576,17 @@ func ClipAndWrapGeometry(b orb.Bound, layers map[string]*geojson.FeatureCollecti
 	}
 }
 
+func padBoundByFactor(b orb.Bound, f float64) orb.Bound {
+	// padded/clipping bounds,
+	//   1.0 (default) is same bounds.
+	//   3.0 is 3x3 tile centered around tile.
+	if f == 0 || f == 1.0 {
+		return b
+	}
+
+	return geo.BoundPad(b, geo.BoundHeight(b)*(f-1)/2)
+}
+
 func clipToBound(b orb.Bound, f *geojson.Feature) {
 	f.Geometry = smartclip.SmartClip(b, f.Geometry, orb.CCW)
 }
@@ -579,9 +596,15 @@ func hasOpenOuterRing(g orb.Geometry) bool {
 	case orb.Polygon:
 		return len(g) > 0 && !g[0].Closed()
 	case orb.MultiPolygon:
-		// Just checking the first polygon. This is used in label placement
-		// and the centroid calc probably won't result in a good label anyway.
-		return len(g) > 0 && len(g[0]) > 0 && !g[0][0].Closed()
+		if len(g) == 0 {
+			return false
+		}
+
+		for _, p := range g {
+			if len(p) > 0 && !p[0].Closed() {
+				return true
+			}
+		}
 	}
 
 	return false

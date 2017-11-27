@@ -24,6 +24,7 @@ type Config struct {
 	PostProcess []*postprocess.Config `yaml:"post_process"`
 
 	postProcessors []postprocess.Function
+	clipFactors    map[string]float64
 }
 
 // Layer defines config for a single layer.
@@ -74,7 +75,7 @@ func loadConfig(data []byte, asset func(name string) ([]byte, error)) (*Config, 
 	// clips factors is one, of potentially many things defined on the
 	// layer config that is needed by the post processors. All the information
 	// needs to be found here and passed to the compilers.
-	clipFactors := make(map[string]float64)
+	c.clipFactors = make(map[string]float64)
 	for _, name := range c.All {
 		lc := c.Layers[name]
 		err := lc.load(name, asset)
@@ -82,12 +83,12 @@ func loadConfig(data []byte, asset func(name string) ([]byte, error)) (*Config, 
 			return nil, errors.WithMessage(err, name)
 		}
 
-		clipFactors[name] = lc.ClipFactor
+		c.clipFactors[name] = lc.ClipFactor
 	}
 
 	ppctx := &postprocess.CompileContext{
 		Asset:       asset,
-		ClipFactors: clipFactors,
+		ClipFactors: c.clipFactors,
 	}
 	for i, p := range c.PostProcess {
 		f, err := postprocess.Compile(ppctx, p)

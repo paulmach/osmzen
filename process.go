@@ -117,16 +117,8 @@ func (c *Config) processGeoJSON(
 		pp.Eval(ppctx, result)
 	}
 
-	// We clip exactly to the tile boundary because that is the only area
-	// where we know we have complete geometry. Clipping to larger area would
-	// result is correct geometry within the bound, but invalid/overlapping geometry
-	// outside which tangram does not render correctly.
-	// https://github.com/tangrams/tangram/issues/613
-	//
-	// Also clipping to exactly the tile boundary may cause problems with showing
-	// outlines along the tile boundary.
-	// https://github.com/tilezen/vector-datasource/issues/197
-	// postprocess.ClipAndWrapGeometry(ppctx.Bound, result)
+	// clip and fix open polygons (tained multipolygon relations)
+	postprocess.ClipAndWrapGeometry(ppctx.Bound, c.clipFactors, result)
 
 	// remove tags
 	for _, l := range result {

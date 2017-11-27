@@ -2,7 +2,6 @@ language: go
 
 go:
   - 1.9
-  - tip
 
 after_script:
   - FIXED=$(go vet ./... | wc -l); if [ $FIXED -gt 0 ]; then echo "go vet - $FIXED issues(s), please fix." && exit 2; fi

@@ -10,6 +10,8 @@ import (
 	"github.com/paulmach/osmzen/filter"
 )
 
+var anyNumber = regexp.MustCompile("[^0-9]*([0-9]+)")
+
 // network represents a type of route network.
 // prefix is what we should insert into
 // the property we put on the feature (e.g: prefix + 'network' for
@@ -64,6 +66,57 @@ func init() {
 	}
 }
 
+// a mapping of operator tag values to the networks that they are (probably)
+// part of. this would be better specified directly on the data, but sometimes
+// it's just not available.
+//
+// this is a list of the operators with >=100 uses on ways tagged as motorways,
+// which should hopefully allow us to catch most of the important ones. they're
+// mapped to the country they're in, which should be enough in most cases to
+// render the appropriate shield.
+var networkOperators = map[string]string{
+	"Highways England": "GB",
+	"ASF":              "FR",
+	"Autopista Litoral Sul": "BR",
+	"DNIT":                  "BR",
+	"Εγνατία Οδός":                    "GR",
+	"Αυτοκινητόδρομος Αιγαίου":        "GR",
+	"Transport Scotland":              "GB",
+	"The Danish Road Directorate":     "DK",
+	"Autostrade per l' Italia S.P.A.": "IT",
+	"Νέα Οδός":                        "GR",
+	"Autostrada dei Fiori S.P.A.":     "IT",
+	"S.A.L.T.":                        "IT",
+	"Welsh Government":                "GB",
+	"Euroscut":                        "PT",
+	"DIRIF":                           "FR",
+	"Administración central":          "ES",
+	"Αττική Οδός":                     "GR",
+	"Autocamionale della Cisa S.P.A.": "IT",
+	"Κεντρική Οδός":                   "GR",
+	"Bundesrepublik Deutschland":      "DE",
+	"Ecovias":                         "BR",
+	"東日本高速道路":                         "JP",
+	"NovaDutra":                       "BR",
+	"APRR":                            "FR",
+	"Via Solutions Südwest":                                "DE",
+	"Autoroutes du Sud de la France":                       "FR",
+	"Transport for Scotland":                               "GB",
+	"Departamento de Infraestructuras Viarias y Movilidad": "ES",
+	"ViaRondon":                                    "BR",
+	"DIRNO":                                        "FR",
+	"SATAP":                                        "IT",
+	"Ολυμπία Οδός":                                 "GR",
+	"Midland Expressway Ltd":                       "GB",
+	"autobahnplus A8 GmbH":                         "DE",
+	"Cart":                                         "BR",
+	"Μορέας":                                       "GR",
+	"Hyderabad Metropolitan Development Authority": "PK",
+	"Viapar":                  "BR",
+	"Autostrade Centropadane": "IT",
+	"Triângulo do Sol":        "BR",
+}
+
 // guessTypeFromNetwork
 // Return a best guess of the type of network (road, hiking, bus, bicycle)
 // from the network tag itself.
@@ -88,6 +141,17 @@ func guessTypeFromNetwork(network string) string {
 func mergeNetworksFromTags(ctx *filter.Context, feature *geojson.Feature) {
 	network := feature.Properties.MustString("network")
 	ref := feature.Properties.MustString("ref")
+
+	// if there's no network, but the operator indicates a network, then we can
+	// back-fill an approximate network tag from the operator. this can mean
+	// that extra refs are available for road networks.
+	if network == "" {
+		operator := feature.Properties.MustString("operator")
+		if backfillNetwork, ok := networkOperators[operator]; ok {
+			network = backfillNetwork
+		}
+	}
+
 	if network == "" || ref == "" {
 		return
 	}
@@ -233,9 +297,18 @@ func roadNetworkImportance(network, ref string) int {
 
 	}
 
-	rc, _ := strconv.Atoi(ref)
+	rc, err := strconv.Atoi(ref)
+	if err != nil {
+		// if not, we can try to extract anything that looks like a sequence
+		// of digits from the ref.
+		matches := anyNumber.FindStringSubmatch(ref)
+		if len(matches) != 0 {
+			rc, _ = strconv.Atoi(matches[1])
+		}
+	}
+
 	if rc < 0 {
-		rc = 0
+		rc *= -1
 	}
 
 	if rc > 9999 {
@@ -306,6 +379,7 @@ func busNetworkImportance(network, ref string) int {
 }
 
 var numberAtFrontPattern = regexp.MustCompile(`^(\d+\w*)`)
+var singleLetterAtFront = regexp.MustCompile(`^([^\W\d]) *(\d+)`)
 var letterThenNumbersPattern = regexp.MustCompile(`(?i)^[^\d\s_]+[ -]?([\d]+)`)
 var uaTerritorialPattern = regexp.MustCompile(`(?i)^(\w)-(\d+)-(\d+)$`)
 
@@ -346,6 +420,13 @@ func roadShieldText(network, ref string) string {
 	matches := numberAtFrontPattern.FindStringSubmatch(ref)
 	if len(matches) != 0 {
 		return matches[1]
+	}
+
+	// If there's a letter at the front, optionally space, and then a number,
+	// the ref is the concatenation (without space) of the letter and number.
+	matches = singleLetterAtFront.FindStringSubmatch(ref)
+	if len(matches) != 0 {
+		return matches[1] + matches[2]
 	}
 
 	// Otherwise, try to match a bunch of letters followed by a number.

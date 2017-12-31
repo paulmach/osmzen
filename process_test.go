@@ -51,15 +51,16 @@ func TestProcess(t *testing.T) {
 	}
 
 	expected := map[string]interface{}{
-		"min_zoom":   13.0,
-		"sort_rank":  475.0,
-		"scale_rank": 2.0,
-		"height":     23.0,
-		"area":       11528.0,
-		"volume":     265144.0,
-		"kind":       "building",
-		"id":         22942652,
-		"type":       "way",
+		"min_zoom":    13.0,
+		"sort_rank":   475.0,
+		"scale_rank":  2.0,
+		"height":      23.0,
+		"area":        11528.0,
+		"volume":      265144.0,
+		"kind":        "building",
+		"kind_detail": "parking",
+		"id":          22942652,
+		"type":        "way",
 	}
 
 	if !reflect.DeepEqual(feature.Properties, geojson.Properties(expected)) {

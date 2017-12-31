@@ -46,9 +46,9 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"simplify_and_clip":               nil,
 	"intercut":                        nil,
 	"simplify_layer":                  nil,
+	"backfill_from_other_layer":       compileBackfillFromOtherLayers,
 	"buildings_unify":                 nil,
 	"palettize_colours":               nil,
-	"backfill_from_other_layer":       nil,
 }
 
 var (
@@ -536,6 +536,73 @@ func compileDropFeaturesWhere(ctx *CompileContext, c *Config) (Function, error) 
 	}
 
 	f.Condition = cond
+	return f, nil
+}
+
+// Matches features from one layer with the other on the basis of the feature
+// ID and, if the configured layer property doesn't exist on the feature, but
+// the other layer property does exist on the matched feature, then copy it
+// across.
+// The initial use for this is to backfill POI kinds into building kind_detail
+// when the building doesn't already have a different kind_detail supplied.
+type backfillFromOtherLayers struct {
+	SrcLayer string
+	SrcKey   string
+	DstLayer string
+	DstKey   string
+}
+
+func (f *backfillFromOtherLayers) Eval(ctx *Context, layers map[string]*geojson.FeatureCollection) {
+	// build an index of feature ID to property value in the other layer
+	values := make(map[int]interface{})
+	for _, feature := range layers[f.SrcLayer].Features {
+		fid := feature.Properties.MustInt("id")
+		if fid == 0 {
+			continue
+		}
+
+		if kind, ok := feature.Properties[f.SrcKey]; ok {
+			values[fid] = kind
+		}
+	}
+
+	// apply those to features which don't already have a value
+	for _, feature := range layers[f.DstLayer].Features {
+		if _, ok := feature.Properties[f.DstKey]; ok {
+			continue
+		}
+
+		id := feature.Properties.MustInt("id")
+		if id == 0 {
+			continue
+		}
+
+		if v, ok := values[id]; ok {
+			feature.Properties[f.DstKey] = v
+		}
+	}
+}
+
+func compileBackfillFromOtherLayers(ctx *CompileContext, c *Config) (Function, error) {
+	f := &backfillFromOtherLayers{}
+
+	var ok bool
+	if f.SrcLayer, ok = c.Params["other_layer"].(string); !ok {
+		return nil, errors.New("backfill_from_other_layer: other_layer must be defined")
+	}
+
+	if f.SrcKey, ok = c.Params["other_key"].(string); !ok {
+		return nil, errors.New("backfill_from_other_layer: other_key must be defined")
+	}
+
+	if f.DstLayer, ok = c.Params["layer"].(string); !ok {
+		return nil, errors.New("backfill_from_other_layer: layer must be defined")
+	}
+
+	if f.DstKey, ok = c.Params["layer_key"].(string); !ok {
+		return nil, errors.New("backfill_from_other_layer: layer_key must be defined")
+	}
+
 	return f, nil
 }
 

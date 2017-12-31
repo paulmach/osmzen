@@ -126,8 +126,6 @@ func (ctx *Context) computeLengthArea() {
 	default:
 		ctx.length = 0
 	}
-
-	return
 }
 
 // Height returns the height of the thing, usually a building.

@@ -617,10 +617,6 @@ func tagsNameI18N(ctx *filter.Context, feature *geojson.Feature) {
 	// langs := map[string]lang{}
 
 	// for k, v := range ctx.Tags {
-	// 	if v == name {
-	// 		continue
-	// 	}
-
 	// 	for _, candidate := range altNamePrefixCandidates {
 	// 		if strings.HasPrefix(k, candidate) {
 	// 			langCode := k[len(candidate):]

@@ -48,6 +48,7 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"simplify_layer":                  nil,
 	"buildings_unify":                 nil,
 	"palettize_colours":               nil,
+	"backfill_from_other_layer":       nil,
 }
 
 var (

@@ -49,10 +49,8 @@ func NewContext(feature *geojson.Feature) *Context {
 	}
 
 	if feature != nil {
-		ctx.FeatureID = osm.FeatureID{
-			Type: osm.Type(feature.Properties.MustString("type")),
-			Ref:  int64(feature.Properties.MustInt("id")),
-		}
+		ctx.FeatureID = osm.Type(feature.Properties.MustString("type")).
+			FeatureID(int64(feature.Properties.MustInt("id")))
 
 		// nil feature are sometimes passed in when testing.
 		// not setting one or both of these values will break lots of things.
@@ -82,10 +80,7 @@ func NewContextFromProperties(props geojson.Properties) *Context {
 		minZoom: -1,
 	}
 
-	ctx.FeatureID = osm.FeatureID{
-		Type: osm.Type(props.MustString("type")),
-		Ref:  int64(props.MustInt("id")),
-	}
+	ctx.FeatureID = osm.Type(props.MustString("type")).FeatureID(int64(props.MustInt("id")))
 
 	return ctx
 }
@@ -167,7 +162,7 @@ func (ctx *Context) MinZoom() float64 {
 }
 
 func (ctx *Context) wayMembership() osm.Ways {
-	if ctx.FeatureID.Type != osm.TypeNode {
+	if ctx.FeatureID.Type() != osm.TypeNode {
 		return nil
 	}
 

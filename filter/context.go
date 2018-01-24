@@ -110,7 +110,7 @@ func (ctx *Context) Area() float64 {
 }
 
 func (ctx *Context) computeLengthArea() {
-	projected := project.ToPlanar(orb.Clone(ctx.Geometry), project.Mercator)
+	projected := project.Geometry(orb.Clone(ctx.Geometry), project.WGS84.ToMercator)
 
 	ctx.area = planar.Area(projected)
 	ctx.area = math.Floor(ctx.area + 0.5)

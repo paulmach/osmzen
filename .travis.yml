@@ -1,11 +1,30 @@
 language: go
-
+sudo: false
 go:
-  - 1.9
+  - 1.9.x
+  - tip
+
+install:
+  - go get -v github.com/paulmach/osmzen
+  - go install -v
+
+script:
+  - go test -v -race ./...
+  - go test -v -coverprofile=filter.coverprofile ./filter
+  - go test -v -coverprofile=matcher.coverprofile ./matcher
+  - go test -v -coverprofile=postprocess.coverprofile ./postprocess
+  - go test -v -coverprofile=transform.coverprofile ./transform
+  - go test -v -coverprofile=util.coverprofile ./util
+  - go test -v -coverprofile=streetnames.coverprofile ./util/streetnames
+  - go test -v -coverprofile=main.coverprofile
 
 after_script:
   - FIXED=$(go vet ./... | wc -l); if [ $FIXED -gt 0 ]; then echo "go vet - $FIXED issues(s), please fix." && exit 2; fi
   - FIXED=$(go fmt ./... | wc -l); if [ $FIXED -gt 0 ]; then echo "gofmt - $FIXED file(s) not formatted correctly, please run gofmt to fix this." && exit 2; fi
 
-script:
-  - go test -v ./...
+after_success:
+  - go get -u github.com/modocache/gover
+  - go get -u github.com/mattn/goveralls
+  - export PATH=$PATH:$HOME/gopath/bin
+  - gover
+  - goveralls -coverprofile=gover.coverprofile -service=travis-ci

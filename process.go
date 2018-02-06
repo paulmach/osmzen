@@ -23,7 +23,7 @@ func (c *Config) Process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (map[st
 	return c.process(data, bound, z)
 }
 
-// order is the prefered order to process a single element.
+// order is the preferred order to process a single element.
 // Try to match the most reasonable first.
 var order = []string{
 	"pois",

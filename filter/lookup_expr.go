@@ -157,11 +157,11 @@ func compileLookupExpr(expr interface{}) (Expression, error) {
 		return nil, errors.Errorf("lookup: must kave op attribute: (%T, %v)", expr, expr)
 	}
 
-	if o, ok := op.(string); !ok || !stringIn(o, []string{"<", ">", "<=", ">="}) {
+	o, ok := op.(string)
+	if !ok || !stringIn(o, []string{"<", ">", "<=", ">="}) {
 		return nil, errors.Errorf("lookup: must kave op must be in ['<', '>', '<=', '>=']: (%T, %v)", expr, expr)
-	} else {
-		le.Op = o
 	}
+	le.Op = o
 
 	// the table
 	table := options["table"]

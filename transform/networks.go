@@ -40,7 +40,7 @@ var busNetwork = network{
 
 // Networks is the name -> details map for networks.
 var networks = map[string]network{
-	"road": network{
+	"road": {
 		Type:              "roadNetwork",
 		Prefix:            "",
 		ShieldText:        roadShieldText,
@@ -48,7 +48,7 @@ var networks = map[string]network{
 	},
 	"foot":   footNetwork,
 	"hiking": footNetwork,
-	"bicycle": network{
+	"bicycle": {
 		Type:              "bicycleNetwork",
 		Prefix:            "bicycle_",
 		ShieldText:        defaultShieldText,
@@ -401,7 +401,7 @@ func roadShieldText(network, ref string) string {
 		return ref
 	}
 
-	// Ukranian roads sometimes have internal dashes which should be removed.
+	// Ukrainian roads sometimes have internal dashes which should be removed.
 	if strings.HasPrefix(network, "ua:") {
 		matches := uaTerritorialPattern.FindStringSubmatch(ref)
 		if len(matches) != 0 {

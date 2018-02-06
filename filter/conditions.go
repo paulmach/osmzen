@@ -11,7 +11,7 @@ import (
 // unsupportedConditions are things that we have replaced with
 // a different condition and should be ignored by this code.
 var unsupportedConditions = map[string]struct{}{
-	"way": struct{}{},
+	"way": {},
 }
 
 // A Condition is something that evaluates to a boolean.

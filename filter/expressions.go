@@ -11,7 +11,7 @@ import (
 // unsupportedExpressions are things that we have replaced with
 // a different expression and should be ignored by this code.
 var unsupportedExpressions = map[string]struct{}{
-	"expr": struct{}{},
+	"expr": {},
 }
 
 // An Expression is something that evaluates to a boolean,

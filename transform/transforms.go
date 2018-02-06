@@ -535,12 +535,12 @@ func addIsBicycleRelated(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 var lookupOperatorRules = map[string][]string{
-	"United States National Park Service": []string{
+	"United States National Park Service": {
 		"National Park Service",
 		"US National Park Service",
 		"U.S. National Park Service",
 		"US National Park service"},
-	"United States Forest Service": []string{
+	"United States Forest Service": {
 		"US Forest Service",
 		"U.S. Forest Service",
 		"USDA Forest Service",
@@ -548,7 +548,7 @@ var lookupOperatorRules = map[string][]string{
 		"US National Forest Service",
 		"United State Forest Service",
 		"U.S. National Forest Service"},
-	"National Parks & Wildife Service NSW": []string{
+	"National Parks & Wildife Service NSW": {
 		"Department of National Parks NSW",
 		"Dept of NSW National Parks",
 		"Dept of National Parks NSW",

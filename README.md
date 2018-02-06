@@ -1,4 +1,4 @@
-osmzen [![Build Status](https://travis-ci.org/paulmach/osmzen.png?branch=master)](https://travis-ci.org/paulmach/osmzen) [![Godoc Reference](https://godoc.org/github.com/paulmach/osmzen?status.png)](https://godoc.org/github.com/paulmach/osmzen)
+osmzen [![Build Status](https://travis-ci.org/paulmach/osmzen.svg?branch=master)](https://travis-ci.org/paulmach/osmzen) [![Go Report Card](https://goreportcard.com/badge/github.com/paulmach/osmzen)](https://goreportcard.com/report/github.com/paulmach/osmzen) [![Godoc Reference](https://godoc.org/github.com/paulmach/osmzen?status.svg)](https://godoc.org/github.com/paulmach/osmzen)
 ======
 
 This is a port of [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) developed by
@@ -108,7 +108,7 @@ func main() {
 	data, _ := osmapi.Map(context.Background(), bounds)
 
 	// process the data
-	// The tile coords will be used to exclude include interesting nodes
+	// The tile coords will be used to exclude interesting nodes
 	// and labels outside the tile.
 	layers, _ := config.Process(data, tile.Bound(), tile.Z)
 
@@ -124,7 +124,7 @@ Implementation details
 At a high level [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) filters and
 process's its data using the following steps:
 
-1. find relevant elements for a layer using the SQL query defined in `data/{layer_name}.jinja`,
+1. find relevant elements for a layer using the SQL queries defined in `data/{layer_name}.jinja`,
 2. filter the elements using filter *conditions* defined in `yaml/{layer_name}.yaml`,
 3. generate properties for each element using the matching filter's output *expressions*,
 4. apply *transforms* to each element independently,
@@ -183,17 +183,17 @@ After elements for a layer are matched and GeoJSON features are created, a set o
 applied. The transforms edit the element properties based on some logic, sometimes requiring the
 set of relations the original OSM element is a member of.
 
-The **transforms** are matched while loading the config to a function of the form:
+While loading the config the **transforms** are matched to functions of the form:
 
 	func(*filter.Context, *geojson.Feature)
 
-Transforms can just change a feature, they can't remove a feature if it's "bad" for any reason, like
+Transforms can only change a feature, they can't remove a feature if it's "bad" for any reason, like
 too small for the zoom. Transforms also don't know about other features so they can't be used to
 remove duplicates or merge features, like parts of the same road. However, transforms can be used to
 do things like fix one-way direction, add the correct highway shield text, abbreviate road names,
 etc.
 
-The **post processes** are compiled to load files and check the parameters. They are mapped to an
+The **post processes** are compiled to check the parameters and data files. They are mapped to an
 object implementing the `postprocess.Function` interface defined as:
 
 	type postprocess.Function interface {

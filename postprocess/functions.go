@@ -656,7 +656,7 @@ func padBoundByFactor(b orb.Bound, f float64) orb.Bound {
 }
 
 func clipToBound(b orb.Bound, f *geojson.Feature) {
-	f.Geometry = smartclip.SmartClip(b, f.Geometry, orb.CCW)
+	f.Geometry = smartclip.Geometry(b, f.Geometry, orb.CCW)
 }
 
 func hasOpenOuterRing(g orb.Geometry) bool {

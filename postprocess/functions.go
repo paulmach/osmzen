@@ -383,7 +383,7 @@ type deduplicator struct {
 
 func (d *deduplicator) Keep(feature *geojson.Feature) bool {
 	for i, k := range d.Keys {
-		s := feature.Properties.MustString(k)
+		s := feature.Properties.MustString(k, "")
 		if s == "" {
 			// if we're missing, we should keep it.
 			return true
@@ -556,7 +556,7 @@ func (f *backfillFromOtherLayers) Eval(ctx *Context, layers map[string]*geojson.
 	// build an index of feature ID to property value in the other layer
 	values := make(map[int]interface{})
 	for _, feature := range layers[f.SrcLayer].Features {
-		fid := feature.Properties.MustInt("id")
+		fid := feature.Properties.MustInt("id", 0)
 		if fid == 0 {
 			continue
 		}
@@ -572,7 +572,7 @@ func (f *backfillFromOtherLayers) Eval(ctx *Context, layers map[string]*geojson.
 			continue
 		}
 
-		id := feature.Properties.MustInt("id")
+		id := feature.Properties.MustInt("id", 0)
 		if id == 0 {
 			continue
 		}

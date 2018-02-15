@@ -84,7 +84,7 @@ func (f calculateFerryLevel) Eval(ctx *Context) interface{} {
 // mz_calculate_ferry_level
 // https://github.com/tilezen/vector-datasource/blob/617f2011d262b6f2171e988fd60931890663cf7a/data/functions.sql#L1-L17
 func (f calculateFerryLevel) EvalNum(ctx *Context) float64 {
-	if t := ctx.Geometry.GeoJSONType(); t != geojson.LineString && t != geojson.MultiLineString {
+	if t := ctx.Geometry.GeoJSONType(); t != geojson.TypeLineString && t != geojson.TypeMultiLineString {
 		if ctx.Verbose {
 			log.Printf("failed to calculate ferry level: %v is non-line", ctx.FeatureID)
 		}

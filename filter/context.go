@@ -51,8 +51,8 @@ func NewContext(feature *geojson.Feature) *Context {
 	if feature != nil {
 		// during normal operation the type and id properties would have been
 		// set by the osm/osmgeojson package so we know they're valid.
-		ctx.FeatureID, _ = osm.Type(feature.Properties.MustString("type")).
-			FeatureID(int64(feature.Properties.MustInt("id")))
+		ctx.FeatureID, _ = osm.Type(feature.Properties.MustString("type", "")).
+			FeatureID(int64(feature.Properties.MustInt("id", 0)))
 
 		// nil feature are sometimes passed in when testing.
 		// not setting one or both of these values will break lots of things.
@@ -82,7 +82,7 @@ func NewContextFromProperties(props geojson.Properties) *Context {
 		minZoom: -1,
 	}
 
-	ctx.FeatureID, _ = osm.Type(props.MustString("type")).FeatureID(int64(props.MustInt("id")))
+	ctx.FeatureID, _ = osm.Type(props.MustString("type", "")).FeatureID(int64(props.MustInt("id", 0)))
 
 	return ctx
 }

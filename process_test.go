@@ -46,8 +46,8 @@ func TestProcess(t *testing.T) {
 	}
 
 	feature := tile["buildings"].Features[0]
-	if gt := feature.Geometry.GeoJSONType(); gt != geojson.Polygon {
-		t.Errorf("incorrect geometry type: %v != %v", gt, geojson.Polygon)
+	if gt := feature.Geometry.GeoJSONType(); gt != geojson.TypePolygon {
+		t.Errorf("incorrect geometry type: %v != %v", gt, geojson.TypePolygon)
 	}
 
 	expected := map[string]interface{}{
@@ -136,7 +136,7 @@ func TestProcessTile_OnlyIncludeLabelIfInTile(t *testing.T) {
 		t.Fatalf("should only have 1 landuse feature, the polygon")
 	}
 
-	if gt := tile["landuse"].Features[0].Geometry.GeoJSONType(); gt != geojson.Polygon {
+	if gt := tile["landuse"].Features[0].Geometry.GeoJSONType(); gt != geojson.TypePolygon {
 		t.Errorf("landuse feature should be polygon: %v", gt)
 	}
 
@@ -179,7 +179,7 @@ func TestProcessTile_DeduplicatePOIS(t *testing.T) {
 		t.Fatalf("should only have 1 landuse feature, the polygon: %d", l)
 	}
 
-	if gt := tile["landuse"].Features[0].Geometry.GeoJSONType(); gt != geojson.Polygon {
+	if gt := tile["landuse"].Features[0].Geometry.GeoJSONType(); gt != geojson.TypePolygon {
 		t.Errorf("landuse feature should be polygon: %v", gt)
 	}
 

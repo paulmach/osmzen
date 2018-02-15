@@ -81,7 +81,7 @@ var (
 )
 
 func detectOSMRelation(ctx *filter.Context, feature *geojson.Feature) {
-	if feature.Properties.MustString("type") == "relation" {
+	if feature.Properties.MustString("type", "") == "relation" {
 		feature.Properties["osm_relation"] = true
 	}
 }
@@ -94,13 +94,13 @@ func buildingHeight(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func buildingMinHeight(ctx *filter.Context, feature *geojson.Feature) {
-	height, ok := util.ToFloat64(feature.Properties.MustString("min_height"))
+	height, ok := util.ToFloat64(feature.Properties.MustString("min_height", ""))
 	if ok {
 		feature.Properties["min_height"] = height
 		return
 	}
 
-	levels, ok := util.ToFloat64(feature.Properties.MustString("building_min_levels"))
+	levels, ok := util.ToFloat64(feature.Properties.MustString("building_min_levels", ""))
 	if !ok {
 		delete(feature.Properties, "min_height")
 		return
@@ -131,9 +131,9 @@ func roadClassifier(ctx *filter.Context, feature *geojson.Feature) {
 	delete(feature.Properties, "is_tunnel")
 	delete(feature.Properties, "is_bridge")
 
-	detail := feature.Properties.MustString("kind_detail")
-	tunnel := feature.Properties.MustString("tunnel")
-	bridge := feature.Properties.MustString("bridge")
+	detail := feature.Properties.MustString("kind_detail", "")
+	tunnel := feature.Properties.MustString("tunnel", "")
+	bridge := feature.Properties.MustString("bridge", "")
 
 	if strings.HasSuffix(detail, "_link") {
 		feature.Properties["is_link"] = true
@@ -154,7 +154,7 @@ func roadTrimProperties(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func roadOneway(ctx *filter.Context, feature *geojson.Feature) {
-	oneway := feature.Properties.MustString("oneway")
+	oneway := feature.Properties.MustString("oneway", "")
 	switch oneway {
 	case "-1", "reverse":
 		if util.ReverseLineDirection(feature) {
@@ -168,12 +168,12 @@ func roadOneway(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func routeName(ctx *filter.Context, feature *geojson.Feature) {
-	rn := feature.Properties.MustString("route_name")
+	rn := feature.Properties.MustString("route_name", "")
 	if rn == "" {
 		return
 	}
 
-	name := feature.Properties.MustString("name")
+	name := feature.Properties.MustString("name", "")
 	if name == "" {
 		feature.Properties["name"] = rn
 		delete(feature.Properties, "route_name")
@@ -183,7 +183,7 @@ func routeName(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func placePopulation(ctx *filter.Context, feature *geojson.Feature) {
-	pop := feature.Properties.MustString("population")
+	pop := feature.Properties.MustString("population", "")
 	if f, ok := util.ToFloat64(pop); ok {
 		feature.Properties["population"] = math.Floor(f)
 	} else {
@@ -192,7 +192,7 @@ func placePopulation(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func poisCapacity(ctx *filter.Context, feature *geojson.Feature) {
-	capacity := feature.Properties.MustString("capacity")
+	capacity := feature.Properties.MustString("capacity", "")
 	if f, ok := util.ToFloat64(capacity); ok {
 		feature.Properties["capacity"] = math.Floor(f)
 	} else {
@@ -201,7 +201,7 @@ func poisCapacity(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func waterTunnel(ctx *filter.Context, feature *geojson.Feature) {
-	tunnel := feature.Properties.MustString("tunnel")
+	tunnel := feature.Properties.MustString("tunnel", "")
 	delete(feature.Properties, "tunnel")
 
 	if tunnel == "" || tunnel == "no" || tunnel == "false" || tunnel == "0" {
@@ -212,7 +212,7 @@ func waterTunnel(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func adminLevelAsNum(ctx *filter.Context, feature *geojson.Feature) {
-	level := feature.Properties.MustString("admin_level")
+	level := feature.Properties.MustString("admin_level", "")
 	delete(feature.Properties, "admin_level")
 	if level == "" {
 		return
@@ -261,7 +261,7 @@ func calculateDefaultPlaceMinZoom(ctx *filter.Context, feature *geojson.Feature)
 	}
 
 	// base calculation off kind
-	kind := feature.Properties.MustString("kind")
+	kind := feature.Properties.MustString("kind", "")
 	if kind == "" {
 		return
 	}
@@ -273,9 +273,9 @@ func calculateDefaultPlaceMinZoom(ctx *filter.Context, feature *geojson.Feature)
 
 	// adjust min_zoom for state / country capitals
 	if kind == "city" || kind == "town" {
-		if feature.Properties.MustString("region_capital") != "" {
+		if feature.Properties.MustString("region_capital", "") != "" {
 			mz--
-		} else if feature.Properties.MustString("country_capital") != "" {
+		} else if feature.Properties.MustString("country_capital", "") != "" {
 			mz -= 2
 		}
 	}
@@ -285,7 +285,7 @@ func calculateDefaultPlaceMinZoom(ctx *filter.Context, feature *geojson.Feature)
 
 // roadAbbreviateName
 func roadAbbreviateName(ctx *filter.Context, feature *geojson.Feature) {
-	name := feature.Properties.MustString("name")
+	name := feature.Properties.MustString("name", "")
 	if name == "" {
 		return
 	}
@@ -299,7 +299,7 @@ func roadAbbreviateName(ctx *filter.Context, feature *geojson.Feature) {
 // as a floating point number, the number replaces the
 // original property.
 func parseLayerAsFloat(ctx *filter.Context, feature *geojson.Feature) {
-	layer := feature.Properties.MustString("layer")
+	layer := feature.Properties.MustString("layer", "")
 	if layer == "" {
 		return
 	}
@@ -312,7 +312,7 @@ func parseLayerAsFloat(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func normalizeAerialways(ctx *filter.Context, feature *geojson.Feature) {
-	aerialway := feature.Properties.MustString("aerialway")
+	aerialway := feature.Properties.MustString("aerialway", "")
 
 	switch aerialway {
 	case "cableway":
@@ -385,14 +385,14 @@ func addUICRef(ctx *filter.Context, feature *geojson.Feature) {
 // things with zoo and attraction tags have those values as their
 // main kind.
 func normalizeTourismKind(ctx *filter.Context, feature *geojson.Feature) {
-	zoo := feature.Properties.MustString("zoo")
+	zoo := feature.Properties.MustString("zoo", "")
 	if zoo != "" {
 		feature.Properties["kind"] = zoo
 		feature.Properties["tourism"] = "attraction"
 		return
 	}
 
-	attraction := feature.Properties.MustString("attraction")
+	attraction := feature.Properties.MustString("attraction", "")
 	if attraction != "" {
 		feature.Properties["kind"] = attraction
 		feature.Properties["tourism"] = "attraction"
@@ -410,7 +410,7 @@ func normalizeTourismKind(ctx *filter.Context, feature *geojson.Feature) {
 // semi-colon delimited list, to an actual list under the `for` property.
 // This should make it easier to consume.
 func normalizeSocialKind(ctx *filter.Context, feature *geojson.Feature) {
-	kind := feature.Properties.MustString("kind")
+	kind := feature.Properties.MustString("kind", "")
 	if kind != "social_facility" {
 		return
 	}
@@ -434,7 +434,7 @@ func normalizeSocialKind(ctx *filter.Context, feature *geojson.Feature) {
 // which is indicated through the `healthcare:speciality` tag. This is a
 // semi-colon delimited list, so we expand it to an actual list.
 func normalizeMedicalKind(ctx *filter.Context, feature *geojson.Feature) {
-	kind := feature.Properties.MustString("kind")
+	kind := feature.Properties.MustString("kind", "")
 	if kind == "clinic" || kind == "doctors" || kind == "dentist" {
 		speciality := ctx.Tags["healthcare:speciality"]
 		if speciality != "" {
@@ -462,7 +462,7 @@ func heightToMeters(ctx *filter.Context, feature *geojson.Feature) {
 // elevationToMeters
 // If the properties has an "elevation" entry, then convert that to meters.
 func elevationToMeters(ctx *filter.Context, feature *geojson.Feature) {
-	elevation := feature.Properties.MustString("elevation")
+	elevation := feature.Properties.MustString("elevation", "")
 	if elevation == "" {
 		return
 	}
@@ -480,11 +480,11 @@ func elevationToMeters(ctx *filter.Context, feature *geojson.Feature) {
 // single cycleway property. Additionally, if a cycleway_both tag is
 // present, normalize that to the cycleway tag.
 func normalizeCycleway(ctx *filter.Context, feature *geojson.Feature) {
-	cycleway := feature.Properties.MustString("cycleway")
-	cyclewayLeft := feature.Properties.MustString("cycleway_left")
-	cyclewayRight := feature.Properties.MustString("cycleway_right")
+	cycleway := feature.Properties.MustString("cycleway", "")
+	cyclewayLeft := feature.Properties.MustString("cycleway_left", "")
+	cyclewayRight := feature.Properties.MustString("cycleway_right", "")
 
-	cyclewayBoth := feature.Properties.MustString("cycleway_both")
+	cyclewayBoth := feature.Properties.MustString("cycleway_both", "")
 	delete(feature.Properties, "cycleway_both")
 
 	if cyclewayBoth != "" && cycleway == "" {
@@ -521,11 +521,11 @@ func addIsBicycleRelated(ctx *filter.Context, feature *geojson.Feature) {
 		related = true
 	} else if _, ok := feature.Properties["cycleway_right"]; ok {
 		related = true
-	} else if feature.Properties.MustString("kind_detail") == "cycleway" {
+	} else if feature.Properties.MustString("kind_detail", "") == "cycleway" {
 		related = true
-	} else if bicycle := feature.Properties.MustString("bicycle"); bicycle == "yes" || bicycle == "designated" {
+	} else if bicycle := feature.Properties.MustString("bicycle", ""); bicycle == "yes" || bicycle == "designated" {
 		related = true
-	} else if ramp := feature.Properties.MustString("ramp_bicycle"); ramp == "yes" || ramp == "left" || ramp == "right" {
+	} else if ramp := feature.Properties.MustString("ramp_bicycle", ""); ramp == "yes" || ramp == "left" || ramp == "right" {
 		related = true
 	}
 
@@ -580,7 +580,7 @@ func init() {
 //
 // See https://github.com/tilezen/vector-datasource/issues/927.
 func normalizeOperatorValues(ctx *filter.Context, feature *geojson.Feature) {
-	operator := feature.Properties.MustString("operator")
+	operator := feature.Properties.MustString("operator", "")
 	if operator == "" {
 		return
 	}

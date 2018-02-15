@@ -139,14 +139,14 @@ func guessTypeFromNetwork(network string) string {
 // them to the mz_networks list. This is to make handling of networks and refs
 // more consistent across elements.
 func mergeNetworksFromTags(ctx *filter.Context, feature *geojson.Feature) {
-	network := feature.Properties.MustString("network")
-	ref := feature.Properties.MustString("ref")
+	network := feature.Properties.MustString("network", "")
+	ref := feature.Properties.MustString("ref", "")
 
 	// if there's no network, but the operator indicates a network, then we can
 	// back-fill an approximate network tag from the operator. this can mean
 	// that extra refs are available for road networks.
 	if network == "" {
-		operator := feature.Properties.MustString("operator")
+		operator := feature.Properties.MustString("operator", "")
 		if backfillNetwork, ok := networkOperators[operator]; ok {
 			network = backfillNetwork
 		}

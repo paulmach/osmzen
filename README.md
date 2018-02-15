@@ -33,7 +33,7 @@ The goal is for there to be no functional differences for zooms 14+. The YAML de
 unchanged, there a just a few minor changes to the post processor filtering in `queries.yaml`. See
 the [github diff](https://github.com/tilezen/vector-datasource/compare/master...paulmach:master).
 
-The port is based off of [v1.4.0ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.4.0)
+The port is based off of [v1.4.3ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.4.3)
 version of the vector-datasource. The [fork](https://github.com/paulmach/vector-datasource) or the
 [github diff](https://github.com/paulmach/vector-datasource/compare/master...tilezen:master) between
 it and upstream/master are kept at the intended "reference".

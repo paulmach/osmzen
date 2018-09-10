@@ -37,6 +37,12 @@ filters:
       <<: *water_standard_properties_osm
       kind: dock
     table: osm
+  - filter: {amenity: fountain}
+    min_zoom: *water_standard_min_zoom
+    output:
+      <<: *water_standard_properties_osm
+      kind: fountain
+    table: osm
   - filter: {natural: water}
     min_zoom: *water_standard_min_zoom
     output:
@@ -112,6 +118,19 @@ filters:
     output:
       <<: *water_standard_properties_osm
       kind: drain
+    table: osm
+  # reef
+  - filter:
+      natural: reef
+      geom_type: polygon
+    min_zoom: *water_standard_min_zoom
+    output:
+      <<: *water_standard_properties_osm
+      kind: reef
+      kind_detail:
+        case:
+          - when: { reef: [coral, rock, sand] }
+            then: { col: reef }
     table: osm
   - filter: {featurecla: Coastline}
     min_zoom: 0

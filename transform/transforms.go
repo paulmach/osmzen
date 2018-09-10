@@ -31,10 +31,8 @@ var transforms = map[string]Transform{
 	"add_id_to_properties": nil,
 	"remove_feature_id":    nil,
 
-	"extract_network_information":   nil,
-	"choose_most_important_network": nil,
-	"add_road_network_from_ncat":    nil, // south korea road network thing
-	"remove_zero_area":              nil,
+	"add_road_network_from_ncat": nil, // south korea road network thing
+	"remove_zero_area":           nil,
 
 	// not needed we already do this filter.Context.MinZoom()
 	"truncate_min_zoom_to_2dp": nil,
@@ -53,7 +51,6 @@ var transforms = map[string]Transform{
 	"normalize_aerialways":             normalizeAerialways,
 	"normalize_cycleway":               normalizeCycleway,
 	"add_is_bicycle_related":           addIsBicycleRelated,
-	"merge_networks_from_tags":         nil,
 	"road_trim_properties":             roadTrimProperties,
 
 	"building_height":          buildingHeight,

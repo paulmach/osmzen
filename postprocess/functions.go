@@ -22,6 +22,7 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	// functions defined in tilezen/vector-datasource.
 	// nil values have not been implemented.
 	"numeric_min_filter":              compileNumericMinFilter,
+	"road_networks":                   compileRoadNetworks,
 	"build_fence":                     nil,
 	"drop_properties":                 nil,
 	"csv_match_properties":            compileCSVMatchProperties,
@@ -49,6 +50,10 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"backfill_from_other_layer":       compileBackfillFromOtherLayers,
 	"buildings_unify":                 nil,
 	"palettize_colours":               nil,
+	"point_in_country_logic":          nil,
+	"tags_set_ne_min_max_zoom":        nil,
+	"drop_layer":                      nil,
+	"max_zoom_filter":                 nil,
 }
 
 var (

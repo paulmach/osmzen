@@ -1,4 +1,4 @@
-package transform
+package postprocess
 
 import (
 	"regexp"
@@ -7,10 +7,229 @@ import (
 	"strings"
 
 	"github.com/paulmach/orb/geojson"
-	"github.com/paulmach/osmzen/filter"
+	"github.com/pkg/errors"
 )
 
 var anyNumber = regexp.MustCompile("[^0-9]*([0-9]+)")
+
+type roadNetworks struct {
+	Layer string
+}
+
+// Fix up road networks. This means looking at the networks from the
+// relation(s), if any, merging that with information from the tags on the
+// original object and any structure we expect from looking at the country
+// code.
+func (f *roadNetworks) Eval(ctx *Context, layers map[string]*geojson.FeatureCollection) {
+
+	layer := layers[f.Layer]
+
+	for _, feature := range layer.Features {
+		mergeNetworksFromTags(feature)
+
+		// don't have country codes so skip this.
+		// _fixup_country_specific_networks(feature)
+
+		extractNetworkInformation(feature)
+		chooseMostImportantNetwork(feature)
+	}
+}
+
+func compileRoadNetworks(ctx *CompileContext, c *Config) (Function, error) {
+	var ok bool
+	f := &roadNetworks{}
+
+	if f.Layer, ok = c.Params["layer"].(string); !ok {
+		return nil, errors.New("road_networks: layer must be defined a string")
+	}
+
+	return f, nil
+}
+
+// a mapping of operator tag values to the networks that they are (probably)
+// part of. this would be better specified directly on the data, but sometimes
+// it's just not available.
+//
+// this is a list of the operators with >=100 uses on ways tagged as motorways,
+// which should hopefully allow us to catch most of the important ones. they're
+// mapped to the country they're in, which should be enough in most cases to
+// render the appropriate shield.
+var networkOperators = map[string]string{
+	"Highways England":      "GB",
+	"ASF":                   "FR",
+	"Autopista Litoral Sul": "BR",
+	"DNIT":                  "BR",
+	"Εγνατία Οδός":          "GR",
+	"Αυτοκινητόδρομος Αιγαίου":        "GR",
+	"Transport Scotland":              "GB",
+	"The Danish Road Directorate":     "DK",
+	"Autostrade per l' Italia S.P.A.": "IT",
+	"Νέα Οδός":                        "GR",
+	"Autostrada dei Fiori S.P.A.":     "IT",
+	"S.A.L.T.":                        "IT",
+	"Welsh Government":                "GB",
+	"Euroscut":                        "PT",
+	"DIRIF":                           "FR",
+	"Administración central":          "ES",
+	"Αττική Οδός":                     "GR",
+	"Autocamionale della Cisa S.P.A.": "IT",
+	"Κεντρική Οδός":                   "GR",
+	"Bundesrepublik Deutschland":      "DE",
+	"Ecovias":                         "BR",
+	"東日本高速道路":                         "JP",
+	"NovaDutra":                       "BR",
+	"APRR":                            "FR",
+	"Via Solutions Südwest":           "DE",
+	"Autoroutes du Sud de la France":  "FR",
+	"Transport for Scotland":          "GB",
+	"Departamento de Infraestructuras Viarias y Movilidad": "ES",
+	"ViaRondon":              "BR",
+	"DIRNO":                  "FR",
+	"SATAP":                  "IT",
+	"Ολυμπία Οδός":           "GR",
+	"Midland Expressway Ltd": "GB",
+	"autobahnplus A8 GmbH":   "DE",
+	"Cart":                   "BR",
+	"Μορέας":                 "GR",
+	"Hyderabad Metropolitan Development Authority": "PK",
+	"Viapar":                  "BR",
+	"Autostrade Centropadane": "IT",
+	"Triângulo do Sol":        "BR",
+}
+
+// mergeNetworksFromTags
+// Take the network and ref tags from the feature and, if they both exist, add
+// them to the mz_networks list. This is to make handling of networks and refs
+// more consistent across elements.
+func mergeNetworksFromTags(feature *geojson.Feature) {
+	network := feature.Properties.MustString("network", "")
+	ref := feature.Properties.MustString("ref", "")
+	mzNetworks, _ := feature.Properties["mz_networks"].([]string)
+
+	// apply some generic fixes to networks:
+	//  * if they begin with two letters and a colon, then make sure the two
+	//    letters are upper case, as they're probably a country code.
+	//  * if they begin with two letters and a dash, then make the letters upper
+	//    case and replace the dash with a colon.
+	//  * expand ;-delimited lists in refs
+	l := len(mzNetworks) - (len(mzNetworks) % 3)
+	for i := 0; i < l; i += 3 {
+		t, n, r := mzNetworks[i], mzNetworks[i+1], mzNetworks[i+2]
+		if t == "road" && n != "" {
+			mzNetworks[i+1] = fixupNetworkCountryCode(n)
+		}
+
+		if r != "" && strings.Contains(r, ";") {
+			refs := strings.Split(r, ";")
+			mzNetworks[i+2] = refs[len(refs)-1]
+
+			for _, newRef := range refs[:len(refs)-1] {
+				mzNetworks = append(mzNetworks, t, n, newRef)
+			}
+		}
+	}
+
+	// skip country code stuff
+
+	// if there's no network, but the operator indicates a network, then we can
+	// back-fill an approximate network tag from the operator. this can mean
+	// that extra refs are available for road networks.
+	if network == "" {
+		operator := feature.Properties.MustString("operator", "")
+		if backfillNetwork, ok := networkOperators[operator]; ok {
+			network = backfillNetwork
+		}
+	}
+
+	if network == "" || ref == "" {
+		return
+	}
+
+	delete(feature.Properties, "network")
+	delete(feature.Properties, "ref")
+
+	mzNetworks = append(mzNetworks, guessTypeFromNetwork(network), network, ref)
+	feature.Properties["mz_networks"] = mzNetworks
+}
+
+var countryCode = regexp.MustCompile("(?i)^([a-z][a-z])[:-](.*)")
+
+func fixupNetworkCountryCode(network string) string {
+	if network == "" {
+		return ""
+	}
+
+	matches := countryCode.FindStringSubmatch(network)
+	if len(matches) == 0 {
+		return network
+	}
+	// fix up common suffixes which are plural with ones which are singular.
+	suffix := matches[2]
+	if strings.ToLower(suffix) == "roads" {
+		suffix = "road"
+	}
+
+	return strings.ToUpper(matches[1]) + ":" + suffix
+}
+
+// guessTypeFromNetwork
+// Return a best guess of the type of network (road, hiking, bus, bicycle)
+// from the network tag itself.
+func guessTypeFromNetwork(network string) string {
+	switch network {
+	case "iwn", "nwn", "rwn", "lwn":
+		return "hiking"
+	case "icn", "ncn", "rcn", "lcn":
+		return "bicycle"
+	default:
+		// hack for now - how can we tell bus routes from road routes?
+		// it seems all bus routes are relations, where we have a route type
+		// given, so this should default to roads.
+		return "road"
+	}
+}
+
+func extractNetworkInformation(feature *geojson.Feature) {
+	// Take the triples of (route_type, network, ref) from `mz_networks` and
+	// extract them into two arrays of network and shield_text information.
+
+	mzNetworks, _ := feature.Properties["mz_networks"].([]string)
+	delete(feature.Properties, "mz_networks")
+	if len(mzNetworks) == 0 {
+		return
+	}
+
+	// mzNetworks is a set of triples.
+	// This is what the original tilezen/vector-datasource uses
+
+	groups := map[string][][2]string{}
+	for i := 0; i < len(mzNetworks); i += 3 {
+		if n, ok := networks[mzNetworks[i]]; ok {
+			groups[n.Type] = append(groups[n.Type], [2]string{mzNetworks[i+1], mzNetworks[i+2]})
+		}
+	}
+
+	for nt, vals := range groups {
+		network := networksByType[nt]
+
+		allNetworks := "all_" + network.Prefix + "networks"
+		allShieldTexts := "all_" + network.Prefix + "shield_texts"
+
+		networkNames := make([]string, len(vals))
+		shieldTexts := make([]string, len(vals))
+
+		for i, val := range vals {
+			name := val[0]
+			ref := val[1]
+
+			networkNames[i] = name
+			shieldTexts[i] = network.ShieldText(name, ref)
+		}
+
+		feature.Properties[allNetworks] = networkNames
+		feature.Properties[allShieldTexts] = shieldTexts
+	}
+}
 
 // network represents a type of route network.
 // prefix is what we should insert into
@@ -63,146 +282,6 @@ var networksByType = map[string]network{}
 func init() {
 	for _, n := range networks {
 		networksByType[n.Type] = n
-	}
-}
-
-// a mapping of operator tag values to the networks that they are (probably)
-// part of. this would be better specified directly on the data, but sometimes
-// it's just not available.
-//
-// this is a list of the operators with >=100 uses on ways tagged as motorways,
-// which should hopefully allow us to catch most of the important ones. they're
-// mapped to the country they're in, which should be enough in most cases to
-// render the appropriate shield.
-var networkOperators = map[string]string{
-	"Highways England": "GB",
-	"ASF":              "FR",
-	"Autopista Litoral Sul": "BR",
-	"DNIT":                  "BR",
-	"Εγνατία Οδός":                    "GR",
-	"Αυτοκινητόδρομος Αιγαίου":        "GR",
-	"Transport Scotland":              "GB",
-	"The Danish Road Directorate":     "DK",
-	"Autostrade per l' Italia S.P.A.": "IT",
-	"Νέα Οδός":                        "GR",
-	"Autostrada dei Fiori S.P.A.":     "IT",
-	"S.A.L.T.":                        "IT",
-	"Welsh Government":                "GB",
-	"Euroscut":                        "PT",
-	"DIRIF":                           "FR",
-	"Administración central":          "ES",
-	"Αττική Οδός":                     "GR",
-	"Autocamionale della Cisa S.P.A.": "IT",
-	"Κεντρική Οδός":                   "GR",
-	"Bundesrepublik Deutschland":      "DE",
-	"Ecovias":                         "BR",
-	"東日本高速道路":                         "JP",
-	"NovaDutra":                       "BR",
-	"APRR":                            "FR",
-	"Via Solutions Südwest":                                "DE",
-	"Autoroutes du Sud de la France":                       "FR",
-	"Transport for Scotland":                               "GB",
-	"Departamento de Infraestructuras Viarias y Movilidad": "ES",
-	"ViaRondon":                                    "BR",
-	"DIRNO":                                        "FR",
-	"SATAP":                                        "IT",
-	"Ολυμπία Οδός":                                 "GR",
-	"Midland Expressway Ltd":                       "GB",
-	"autobahnplus A8 GmbH":                         "DE",
-	"Cart":                                         "BR",
-	"Μορέας":                                       "GR",
-	"Hyderabad Metropolitan Development Authority": "PK",
-	"Viapar":                  "BR",
-	"Autostrade Centropadane": "IT",
-	"Triângulo do Sol":        "BR",
-}
-
-// guessTypeFromNetwork
-// Return a best guess of the type of network (road, hiking, bus, bicycle)
-// from the network tag itself.
-func guessTypeFromNetwork(network string) string {
-	switch network {
-	case "iwn", "nwn", "rwn", "lwn":
-		return "hiking"
-	case "icn", "ncn", "rcn", "lcn":
-		return "bicycle"
-	default:
-		// hack for now - how can we tell bus routes from road routes?
-		// it seems all bus routes are relations, where we have a route type
-		// given, so this should default to roads.
-		return "road"
-	}
-}
-
-// mergeNetworksFromTags
-// Take the network and ref tags from the feature and, if they both exist, add
-// them to the mz_networks list. This is to make handling of networks and refs
-// more consistent across elements.
-func mergeNetworksFromTags(ctx *filter.Context, feature *geojson.Feature) {
-	network := feature.Properties.MustString("network", "")
-	ref := feature.Properties.MustString("ref", "")
-
-	// if there's no network, but the operator indicates a network, then we can
-	// back-fill an approximate network tag from the operator. this can mean
-	// that extra refs are available for road networks.
-	if network == "" {
-		operator := feature.Properties.MustString("operator", "")
-		if backfillNetwork, ok := networkOperators[operator]; ok {
-			network = backfillNetwork
-		}
-	}
-
-	if network == "" || ref == "" {
-		return
-	}
-
-	delete(feature.Properties, "network")
-	delete(feature.Properties, "ref")
-
-	mzNetworks, _ := feature.Properties["mz_networks"].([]string)
-	mzNetworks = append(mzNetworks, guessTypeFromNetwork(network), network, ref)
-	feature.Properties["mz_networks"] = mzNetworks
-}
-
-func extractNetworkInformation(ctx *filter.Context, feature *geojson.Feature) {
-	// Take the triples of (route_type, network, ref) from `mz_networks` and
-	// extract them into two arrays of network and shield_text information.
-
-	mzNetworks, _ := feature.Properties["mz_networks"].([]string)
-	delete(feature.Properties, "mz_networks")
-	if len(mzNetworks) == 0 {
-		return
-	}
-
-	// mzNetworks is a set of triples.
-	// This is what the original tilezen/vector-datasource uses
-
-	groups := map[string][][2]string{}
-	for i := 0; i < len(mzNetworks); i += 3 {
-		if n, ok := networks[mzNetworks[i]]; ok {
-			groups[n.Type] = append(groups[n.Type], [2]string{mzNetworks[i+1], mzNetworks[i+2]})
-		}
-	}
-
-	for nt, vals := range groups {
-		network := networksByType[nt]
-
-		allNetworks := "all_" + network.Prefix + "networks"
-		allShieldTexts := "all_" + network.Prefix + "shield_texts"
-
-		networkNames := make([]string, len(vals))
-		shieldTexts := make([]string, len(vals))
-
-		for i, val := range vals {
-			name := val[0]
-			ref := val[1]
-
-			networkNames[i] = name
-			shieldTexts[i] = network.ShieldText(name, ref)
-		}
-
-		feature.Properties[allNetworks] = networkNames
-		feature.Properties[allShieldTexts] = shieldTexts
 	}
 }
 
@@ -262,7 +341,7 @@ func sortNetworkProperties(properties geojson.Properties, network network) {
 	properties[allShields] = ns.shields
 }
 
-func chooseMostImportantNetwork(ctx *filter.Context, feature *geojson.Feature) {
+func chooseMostImportantNetwork(feature *geojson.Feature) {
 	for _, net := range networks {
 		sortNetworkProperties(feature.Properties, net)
 	}

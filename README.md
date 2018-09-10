@@ -20,8 +20,9 @@ These features include:
 * geometry clipping and label placement logic.
 
 A lot of post processors still need to be ported, but only a few of the missing ones apply
-to zooms 14+. Missing post processors include: landuse_kind intercuts, merging line strings
-and merging building with building parts.
+to zooms 14+. Missing post processors include: landuse_kind intercuts, merging line strings,
+merging building with building parts and any admin area matching used to get accurate country
+codes for highways and other objects.
 
 It would also be nice to port some of the integration tests as they would give confidence that
 things are really working as expected. Right now there are just some unit tests and some

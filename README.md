@@ -34,7 +34,7 @@ The goal is for there to be no functional differences for zooms 14+. The YAML de
 unchanged, there a just a few minor changes to the post processor filtering in `queries.yaml`. See
 the [github diff](https://github.com/tilezen/vector-datasource/compare/master...paulmach:master).
 
-The port is based off of [v1.4.3ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.4.3)
+The port is based off of [v1.5.0ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.5.0)
 version of the vector-datasource. The [fork](https://github.com/paulmach/vector-datasource) or the
 [github diff](https://github.com/paulmach/vector-datasource/compare/master...tilezen:master) between
 it and upstream/master are kept at the intended "reference".
@@ -66,13 +66,23 @@ Usage
 2. Process some OSM data:
 
 		data := osm.OSM{}
-		layers, err := config.Process(data, geo.Bound(-180, 180, -90, 90), zoom)
+		layers, err := config.Process(
+			data,
+			orb.Bound{Min: orb.Point{-180, -90}, Max: orb.Point{180, 90}},
+			zoom,
+		)
 
 		// layers is defined as `map[string]*geojson.FeatureCollection`
 
 	Layers can also be processed individually:
 
-		featureCollection, err := config.Layers["buildings"].Process(data, zoom)
+		featureCollection, err := config.Layers["buildings"].Process(
+			data,
+			orb.Bound{Min: orb.Point{-180, -90}, Max: orb.Point{180, 90}},
+			zoom,
+		)
+
+	The bound is necessary for clipping. Typically set to the bound of the requested tile.
 
 The result is a GeoJSON feature collection with `kind`, `kind_detail` etc. properties that
 are understood by [Mapzen house styles](https://mapzen.com/products/maps/).
@@ -123,7 +133,7 @@ Implementation details
 ----------------------
 
 At a high level [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) filters and
-process's its data using the following steps:
+processes its data using the following steps:
 
 1. find relevant elements for a layer using the SQL queries defined in `data/{layer_name}.jinja`,
 2. filter the elements using filter *conditions* defined in `yaml/{layer_name}.yaml`,
@@ -191,8 +201,7 @@ While loading the config the **transforms** are matched to functions of the form
 Transforms can only change a feature, they can't remove a feature if it's "bad" for any reason, like
 too small for the zoom. Transforms also don't know about other features so they can't be used to
 remove duplicates or merge features, like parts of the same road. However, transforms can be used to
-do things like fix one-way direction, add the correct highway shield text, abbreviate road names,
-etc.
+do things like fix one-way direction, abbreviate road names, etc.
 
 The **post processes** are compiled to check the parameters and data files. They are mapped to an
 object implementing the `postprocess.Function` interface defined as:

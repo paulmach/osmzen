@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"io/ioutil"
 	"log"
@@ -48,8 +47,9 @@ func main() {
 		// get the osm data for that bound
 		data, err := osmapi.Map(r.Context(), bound)
 		if err != nil {
-			if err == context.Canceled {
-				w.WriteHeader(500)
+			if err := r.Context().Err(); err != nil {
+				// what if not "context canceled"?
+				http.Error(w, err.Error(), 500)
 				return
 			}
 
@@ -58,9 +58,9 @@ func main() {
 
 		// Process the data into mapzen vector tiles format
 		layers, err := config.Process(
-			data, // osm data
+			data,                            // osm data
 			geo.BoundPad(tile.Bound(), 100), // clip the geometries to this bound, add 100 meters of padding.
-			tile.Z, // zoom, used to leave out things when zoomed out. Doesn't do much in this context.
+			tile.Z,                          // zoom, used to leave out things when zoomed out. Doesn't do much in this context.
 		)
 		if err != nil {
 			w.Write([]byte(err.Error()))

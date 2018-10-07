@@ -6,7 +6,7 @@
 
     <title>osmzen example</title>
 
-    <link rel="stylesheet" href="https://mapzen.com/js/mapzen.css">
+    <link rel="stylesheet" href="https://www.nextzen.org/js/nextzen.css">
     <style>
       body {
         margin: 0px;
@@ -25,44 +25,38 @@
   <body>
     <div id="map"></div>
 
-    <script src="https://mapzen.com/tangram/0.14/tangram.min.js"></script>
-    <script src="https://mapzen.com/js/mapzen.min.js"></script>
+    <script src="https://www.nextzen.org/tangram/0.15/tangram.min.js"></script>
+    <script src="https://www.nextzen.org/js/nextzen.min.js"></script>
     <script>
-      var mapzenApiKey = 'mapzen-fozgx4f';
-      var map = L.map('map'),
-          layer = Tangram.leafletLayer({
-            // scene: L.Mapzen.BasemapStyles.BubbleWrap,
-            // scene: L.Mapzen.BasemapStyles.BubbleWrapMoreLabels,
-            // scene: L.Mapzen.BasemapStyles.Cinnabar,
-            scene: L.Mapzen.BasemapStyles.CinnabarMoreLabels,
-            // scene: L.Mapzen.BasemapStyles.Walkabout,
-            // scene: L.Mapzen.BasemapStyles.WalkaboutMoreLabels,
-
-            attribution: '<a href="https://mapzen.com/" target="_blank">Mapzen</a> | &copy; OSM contributors',
-            minZoom: 15,
-            maxZoom: 18,
-          });
-
-      layer.scene.subscribe({
-        load: function (e) {
-          var mapzen = e.config.sources.mapzen;
-          mapzen.url_params.api_key = mapzenApiKey;
-
-          mapzen.type = 'GeoJSON';
-          mapzen.url = window.location.origin + '/tiles/{z}/{x}/{y}.json'
-
-          mapzen.max_zoom = 15;
-          mapzen.max_zoom = 16;
-          mapzen.min_display_zoom = 15;
-          mapzen.max_display_zoom = 18;
+      var map = L.Nextzen.map('map',
+        {
+          minZoom: 15,
+          maxZoom: 18,
+          attribution: '<a href="https://github.com/tangrams" target="_blank">Tangram</a> | <a href="http://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a> | <a href="https://www.nextzen.org/" target="_blank">Nextzen</a>',
+          tangramOptions: {
+            scene: {
+              import: [
+                'https://www.nextzen.org/carto/bubble-wrap-style/9/bubble-wrap-style.zip',
+                'https://www.nextzen.org/carto/bubble-wrap-style/9/themes/label-10.zip'
+              ],
+              sources: {
+                mapzen: {
+                  type: 'GeoJSON',
+                  url: window.location.origin + '/tiles/{z}/{x}/{y}.json',
+                  tile_size: 256,
+                  min_zoom: 15,
+                  max_zoom: 16,
+                  min_display_zoom: 15,
+                  max_display_zoom: 18
+                }
+              }
+            }
+          }
         }
-      });
+      );
 
-
-      layer.addTo(map);
       map.setView([37.82502, -122.25466], 17);
-
-      L.Mapzen.hash({ map: map });
+      L.Nextzen.hash({ map: map });
     </script>
   </body>
 </html>

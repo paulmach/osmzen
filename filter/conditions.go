@@ -73,9 +73,9 @@ func compilePropertyCond(k interface{}, val interface{}) (Condition, error) {
 
 type allCond []Condition
 
-func (ac allCond) Eval(ctx *Context) bool {
+func (ac *allCond) Eval(ctx *Context) bool {
 	result := true
-	for _, c := range ac {
+	for _, c := range *ac {
 		if !c.Eval(ctx) {
 			result = false
 			if !ctx.Debug {
@@ -88,10 +88,14 @@ func (ac allCond) Eval(ctx *Context) bool {
 }
 
 func compileAllCond(cond interface{}) (Condition, error) {
-	var err error
+	var (
+		ac  allCond
+		err error
+	)
+
 	switch cond := cond.(type) {
 	case []interface{}:
-		ac := make(allCond, len(cond))
+		ac = make(allCond, len(cond))
 		for i, c := range cond {
 			ac[i], err = CompileCondition(c)
 			if err != nil {
@@ -99,10 +103,8 @@ func compileAllCond(cond interface{}) (Condition, error) {
 			}
 		}
 
-		return ac, nil
 	case map[interface{}]interface{}:
-		ac := make(allCond, 0, len(cond))
-
+		ac = make(allCond, 0, len(cond))
 		for k, v := range cond {
 			key, ok := k.(string)
 			if !ok {
@@ -120,11 +122,15 @@ func compileAllCond(cond interface{}) (Condition, error) {
 
 			ac = append(ac, cc)
 		}
-
-		return ac, nil
 	default:
 		return nil, errors.Errorf("all: unsupported type: (%T, %v)", cond, cond)
 	}
+
+	if len(ac) == 1 {
+		return ac[0], nil
+	}
+
+	return &ac, nil
 }
 
 ///////////////////////////////////////
@@ -132,9 +138,12 @@ func compileAllCond(cond interface{}) (Condition, error) {
 
 type anyCond []Condition
 
-func (ac anyCond) Eval(ctx *Context) bool {
+func (ac *anyCond) Eval(ctx *Context) bool {
+	// using a pointer receiver for the slice because go will create a pointer
+	// anyway and when assigned to the Condition interface. This creates a
+	// extra hidden function call made by the runtime.
 	result := false
-	for _, c := range ac {
+	for _, c := range *ac {
 		if c.Eval(ctx) {
 			result = true
 			if !ctx.Debug {
@@ -147,20 +156,22 @@ func (ac anyCond) Eval(ctx *Context) bool {
 }
 
 func compileAnyCond(cond interface{}) (Condition, error) {
-	var err error
+	var (
+		ac  anyCond
+		err error
+	)
+
 	switch cond := cond.(type) {
 	case []interface{}:
-		ac := make(anyCond, len(cond))
+		ac = make(anyCond, len(cond))
 		for i, c := range cond {
 			ac[i], err = CompileCondition(c)
 			if err != nil {
 				return nil, errors.WithMessage(err, "any")
 			}
 		}
-
-		return ac, nil
 	case map[interface{}]interface{}:
-		ac := make(anyCond, len(cond))
+		ac = make(anyCond, len(cond))
 
 		i := 0
 		for k, v := range cond {
@@ -172,11 +183,15 @@ func compileAnyCond(cond interface{}) (Condition, error) {
 			ac[i] = cc
 			i++
 		}
-
-		return ac, nil
 	default:
 		return nil, errors.Errorf("any: unsupported type: (%T, %v)", cond, cond)
 	}
+
+	if len(ac) == 1 {
+		return ac[0], nil
+	}
+
+	return &ac, nil
 }
 
 ///////////////////////////////////////

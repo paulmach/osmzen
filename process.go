@@ -152,6 +152,15 @@ func (l *Layer) evalFeatures(
 	ctx *zenContext,
 	input *geojson.FeatureCollection,
 ) (*geojson.FeatureCollection, error) {
+
+	// This is a cached, and reused version of the filter context
+	// to help reduce memory allocations.
+	ctx.fctx = &filter.Context{
+		OSM:                ctx.OSM,
+		WayMembership:      ctx.WayMembership,
+		RelationMembership: ctx.RelationMembership,
+	}
+
 	output := geojson.NewFeatureCollection()
 	for _, f := range input.Features {
 		// ways that intersect the tile many have interesting nodes outside the tile.
@@ -185,11 +194,8 @@ func (l *Layer) evalFeatures(
 }
 
 func (l *Layer) evalFeature(ctx *zenContext, feature *geojson.Feature) (*geojson.Feature, error) {
-	fctx := filter.NewContext(feature)
-
-	fctx.OSM = ctx.OSM
-	fctx.WayMembership = ctx.WayMembership
-	fctx.RelationMembership = ctx.RelationMembership
+	ctx.fctx = filter.NewContext(ctx.fctx, feature)
+	fctx := ctx.fctx
 
 	if !stringIn(fctx.Geometry.GeoJSONType(), l.GeometryTypes) {
 		return nil, nil
@@ -258,6 +264,9 @@ type zenContext struct {
 	OSM                *osm.OSM
 	WayMembership      map[osm.NodeID]osm.Ways
 	RelationMembership map[osm.FeatureID]osm.Relations
+
+	// cache the object, save the allocs.
+	fctx *filter.Context
 }
 
 func (ctx *zenContext) ComputeMembership() {

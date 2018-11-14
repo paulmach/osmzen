@@ -3,6 +3,7 @@ package filter
 import (
 	"testing"
 
+	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/osm"
 	"github.com/paulmach/osm/osmgeojson"
 )
@@ -67,8 +68,9 @@ filter:
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := filter.Filter.Eval(ctx)
 			if v != tc.result {
@@ -104,8 +106,9 @@ filter:
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := filter.Filter.Eval(ctx)
 			if v != tc.result {
@@ -155,8 +158,9 @@ filter:
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := filter.Filter.Eval(ctx)
 			if v != tc.result {
@@ -210,7 +214,7 @@ filter:
 				t.Errorf("failed to convert to geojson: %v", err)
 			}
 
-			ctx := NewContext(fc.Features[0])
+			ctx := NewContext(nil, fc.Features[0])
 			ctx.Debug = true
 
 			v := filter.Filter.Eval(ctx)

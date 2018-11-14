@@ -5,6 +5,7 @@ import (
 
 	yaml "gopkg.in/yaml.v2"
 
+	"github.com/paulmach/orb/geojson"
 	"github.com/pkg/errors"
 )
 
@@ -56,8 +57,10 @@ func TestColExpr(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			expr := parseExpr(t, tc.expr)
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := expr.Eval(ctx)
 			if v != tc.result {
@@ -115,8 +118,9 @@ case:
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := expr.Eval(ctx)
 			if v != tc.result {
@@ -168,8 +172,9 @@ min:
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := expr.Eval(ctx)
 			if v != tc.result {
@@ -203,8 +208,9 @@ func TestCondExpr(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := expr.Eval(ctx)
 			if v != tc.result {

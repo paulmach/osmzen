@@ -1,6 +1,10 @@
 package filter
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/paulmach/orb/geojson"
+)
 
 func TestLookup(t *testing.T) {
 	expr := parseExpr(t, `
@@ -38,11 +42,12 @@ lookup:
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = map[string]string{
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = map[string]string{
 				"height":   tc.height,
 				"location": "overground",
 			}
+			ctx := NewContext(nil, f)
 
 			v := expr.Eval(ctx)
 			if v != tc.result {
@@ -93,10 +98,11 @@ lookup:
 	ne := expr.(NumExpression) // should convert to NumExpression
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = map[string]string{
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = map[string]string{
 				"height": tc.height,
 			}
+			ctx := NewContext(nil, f)
 
 			i := expr.Eval(ctx)
 			if i != tc.result {

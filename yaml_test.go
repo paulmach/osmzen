@@ -82,7 +82,7 @@ func TestYAML(t *testing.T) {
 }
 
 func checkLayer(layer *Layer, feature *geojson.Feature) {
-	ctx := filter.NewContext(feature)
+	ctx := filter.NewContext(nil, feature)
 	ctx.Debug = true
 
 	for _, f := range layer.filters {

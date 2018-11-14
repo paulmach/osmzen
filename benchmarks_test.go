@@ -60,7 +60,7 @@ func BenchmarkBuildings(b *testing.B) {
 		b.Errorf("failed to convert to geojson: %v", err)
 	}
 
-	ctx := filter.NewContext(fc.Features[0])
+	ctx := filter.NewContext(nil, fc.Features[0])
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -99,7 +99,7 @@ func BenchmarkPOIs(b *testing.B) {
 		b.Errorf("failed to convert to geojson: %v", err)
 	}
 
-	ctx := filter.NewContext(fc.Features[0])
+	ctx := filter.NewContext(nil, fc.Features[0])
 
 	b.ReportAllocs()
 	b.ResetTimer()

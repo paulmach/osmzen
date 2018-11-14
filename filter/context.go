@@ -41,12 +41,13 @@ type Context struct {
 }
 
 // NewContext creates a new filter.Context from an osmgeojson feature.
-func NewContext(feature *geojson.Feature) *Context {
-	ctx := &Context{
-		length:  -1,
-		area:    -1,
-		minZoom: -1,
+func NewContext(ctx *Context, feature *geojson.Feature) *Context {
+	if ctx == nil {
+		ctx = &Context{}
 	}
+	ctx.length = -1
+	ctx.area = -1
+	ctx.minZoom = -1
 
 	if feature != nil {
 		// during normal operation the type and id properties would have been

@@ -35,7 +35,7 @@ output:
 	if err != nil {
 		t.Errorf("failed to convert to geojson: %v", err)
 	}
-	ctx := NewContext(fc.Features[0])
+	ctx := NewContext(nil, fc.Features[0])
 
 	result := filter.Properties(ctx)
 	if v := result["kind"]; v != "building" {

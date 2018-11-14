@@ -1,6 +1,10 @@
 package filter
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/paulmach/orb/geojson"
+)
 
 func TestBuildingHeight(t *testing.T) {
 	cases := []struct {
@@ -31,8 +35,9 @@ func TestBuildingHeight(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := NewContext(nil)
-			ctx.Tags = tc.tags
+			f := geojson.NewFeature(nil)
+			f.Properties["tags"] = tc.tags
+			ctx := NewContext(nil, f)
 
 			v := buildingHeight(ctx)
 			if v != tc.result {

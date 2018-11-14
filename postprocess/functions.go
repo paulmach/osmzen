@@ -222,8 +222,8 @@ func (f *handleLabelPlacement) evalLayer(ctx *Context, paddedBound orb.Bound, la
 	for i := 0; i < end; i++ {
 		feature := layer.Features[i]
 
-		fctx := filter.NewContextFromProperties(feature.Properties)
-		if !f.Condition.Eval(fctx) {
+		ctx.fctx = filter.NewContextFromProperties(ctx.fctx, feature.Properties)
+		if !f.Condition.Eval(ctx.fctx) {
 			continue
 		}
 
@@ -517,8 +517,8 @@ func (f *dropFeaturesWhere) Eval(ctx *Context, layers map[string]*geojson.Featur
 	}
 
 	for _, feature := range layer.Features {
-		fctx := filter.NewContextFromProperties(feature.Properties)
-		if f.Condition.Eval(fctx) {
+		ctx.fctx = filter.NewContextFromProperties(ctx.fctx, feature.Properties)
+		if f.Condition.Eval(ctx.fctx) {
 			continue
 		}
 

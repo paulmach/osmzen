@@ -66,22 +66,32 @@ func NewContext(ctx *Context, feature *geojson.Feature) *Context {
 
 // NewContextFromProperties will create a context using a set of properies.
 // This limits the queries one can do since not all the geometry is present.
-func NewContextFromProperties(props geojson.Properties) *Context {
-	tags := make(map[string]string)
+func NewContextFromProperties(ctx *Context, props geojson.Properties) *Context {
+	if ctx == nil {
+		ctx = &Context{}
+	}
+
+	if ctx.Tags != nil {
+		for k := range ctx.Tags {
+			delete(ctx.Tags, k)
+		}
+	} else {
+		ctx.Tags = make(map[string]string)
+	}
+
 	for k, v := range props {
 		if s, ok := v.(string); ok {
-			tags[k] = s
+			ctx.Tags[k] = s
 		}
 	}
 
 	osmTags, _ := props["tags"].(map[string]string)
-	ctx := &Context{
-		Tags:    tags,
-		OSMTags: osmTags,
-		length:  -1,
-		area:    -1,
-		minZoom: -1,
-	}
+	ctx.OSMTags = osmTags
+
+	ctx.Geometry = nil
+	ctx.length = -1
+	ctx.area = -1
+	ctx.minZoom = -1
 
 	ctx.FeatureID, _ = osm.Type(props.MustString("type", "")).FeatureID(int64(props.MustInt("id", 0)))
 

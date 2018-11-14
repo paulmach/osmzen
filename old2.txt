@@ -1,9 +1,0 @@
-goos: darwin
-goarch: amd64
-pkg: github.com/paulmach/osmzen
-BenchmarkBuildings-4        	  500000	     16360 ns/op	    1208 B/op	      56 allocs/op
-BenchmarkPOIs-4             	   30000	    222679 ns/op	    8312 B/op	     547 allocs/op
-BenchmarkFullTile-4         	     500	  14511475 ns/op	 2752258 B/op	   24528 allocs/op
-BenchmarkProcessGeoJSON-4   	    1000	  11289158 ns/op	 1412965 B/op	   15821 allocs/op
-PASS
-ok  	github.com/paulmach/osmzen	40.265s

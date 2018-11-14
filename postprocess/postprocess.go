@@ -6,6 +6,7 @@ import (
 
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/geojson"
+	"github.com/paulmach/osmzen/filter"
 )
 
 // A Function is the interface implemented by the compiled
@@ -18,6 +19,9 @@ type Function interface {
 type Context struct {
 	Zoom  float64 // zoom of the tile request
 	Bound orb.Bound
+
+	// cache the object, save the allocs.
+	fctx *filter.Context
 }
 
 // CompileContext is the context to help while compiling.

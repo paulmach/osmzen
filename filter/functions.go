@@ -510,19 +510,23 @@ func buildingHeight(ctx *Context) float64 {
 
 	// if height is present, and can be parsed as a
 	// float, then we can filter right here.
-	if f, ok := util.ToFloat64Meters(height); ok {
-		return f
+	if height != "" {
+		if f, ok := util.ToFloat64Meters(height); ok {
+			return f
+		}
+
+		// if height is present, but not numeric, then we have no idea
+		// what it could be, and we must assume it could be very large.
+		return 1.0e10
 	}
 
 	// looks like we assume each level is 3m, plus 2 overall.
-	f, err := strconv.ParseFloat(levels, 64)
-	if err == nil {
-		return math.Max(f, 1)*3 + 2
-	}
+	if levels != "" {
+		f, err := strconv.ParseFloat(levels, 64)
+		if err == nil {
+			return math.Max(f, 1)*3 + 2
+		}
 
-	//if height is present, but not numeric, then we have no idea
-	// what it could be, and we must assume it could be very large.
-	if height != "" || levels != "" {
 		return 1.0e10
 	}
 

@@ -117,7 +117,7 @@ func benchmarkLayer(layer *Layer, ctx *filter.Context) {
 
 		// check the outputs
 		for _, o := range f.Output {
-			o.Eval(ctx)
+			o.Expr.Eval(ctx)
 		}
 	}
 }

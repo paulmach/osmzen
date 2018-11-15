@@ -15,9 +15,17 @@ type Filter struct {
 	RawMinZoom interface{}            `yaml:"min_zoom"`
 	Table      string                 `yaml:"table"`
 
-	MinZoom NumExpression         `yaml:"-"`
-	Filter  Condition             `yaml:"-"`
-	Output  map[string]Expression `yaml:"-"`
+	MinZoom NumExpression `yaml:"-"`
+	Filter  Condition     `yaml:"-"`
+	// Output  map[string]Expression `yaml:"-"`
+	Output []OutputExpression `yaml:"-"`
+}
+
+// OutputExpression has the key and expression value for the outputs.
+// Using a slice vs a key value map was much cleaner.
+type OutputExpression struct {
+	Key  string
+	Expr Expression
 }
 
 // Compile will compile the parsed yaml into the expressions
@@ -52,15 +60,21 @@ func (f *Filter) Compile() error {
 	}
 
 	if f.RawOutput != nil {
-		f.Output = make(map[string]Expression, len(f.RawOutput))
+		f.Output = make([]OutputExpression, 0, len(f.RawOutput))
 		for k, v := range f.RawOutput {
-			var err error
-			f.Output[k], err = CompileExpression(v)
+			expr, err := CompileExpression(v)
 			if err != nil {
 				return &CompileError{
 					Cause: errors.WithMessage(err, fmt.Sprintf("output %s", k)),
 					Input: v,
 				}
+			}
+
+			if _, ok := expr.(*nilExpr); expr != nil && !ok {
+				f.Output = append(f.Output, OutputExpression{
+					Key:  k,
+					Expr: expr,
+				})
 			}
 		}
 	}
@@ -82,10 +96,10 @@ func (f *Filter) Match(ctx *Context) bool {
 // Must call Compile() first to initialize the output expressions.
 func (f *Filter) Properties(ctx *Context) map[string]interface{} {
 	result := make(map[string]interface{}, len(f.Output))
-	for k, expr := range f.Output {
-		o := expr.Eval(ctx)
+	for i := range f.Output {
+		o := f.Output[i].Expr.Eval(ctx)
 		if o != nil {
-			result[k] = o
+			result[f.Output[i].Key] = o
 		}
 	}
 

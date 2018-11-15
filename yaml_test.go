@@ -99,7 +99,7 @@ func checkLayer(layer *Layer, feature *geojson.Feature) {
 
 		// check the outputs
 		for _, e := range f.Output {
-			e.Eval(ctx)
+			e.Expr.Eval(ctx)
 		}
 	}
 }

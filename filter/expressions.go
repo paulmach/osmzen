@@ -62,22 +62,22 @@ func CompileNumExpression(expr interface{}) (NumExpression, error) {
 // an Expression that can be evaluated into a bool, float64 or string.
 func CompileExpression(expr interface{}) (Expression, error) {
 	if expr == nil {
-		return nilExpr{}, nil
+		return &nilExpr{}, nil
 	}
 
 	switch expr := expr.(type) {
 	case int:
-		return numExpr{Val: float64(expr)}, nil
+		return &numExpr{Val: float64(expr)}, nil
 	case float64:
-		return numExpr{Val: expr}, nil
+		return &numExpr{Val: expr}, nil
 	case bool:
-		return boolExpr{Val: expr}, nil
+		return &boolExpr{Val: expr}, nil
 	case string:
 		if expr != "" {
-			return stringExpr{Val: expr}, nil
+			return &stringExpr{Val: expr}, nil
 		}
 
-		return nilExpr{}, nil
+		return &nilExpr{}, nil
 	case map[interface{}]interface{}:
 		// The col expression is the most typical for output
 		// and it just looks like { col: 'tags->location' }
@@ -95,8 +95,7 @@ func CompileExpression(expr interface{}) (Expression, error) {
 				}
 
 				if f, ok := expressions[key]; ok {
-					ce, err := f(v)
-					return ce, err
+					return f(v)
 				}
 
 				return nil, errors.Errorf("unsupported type: %s", key)
@@ -351,7 +350,7 @@ func compileCaseExpr(expr interface{}) (Expression, error) {
 		ce.Whens = append(ce.Whens, cw)
 
 		if then == nil {
-			ce.Thens = append(ce.Thens, nilExpr{})
+			ce.Thens = append(ce.Thens, &nilExpr{})
 			isNum = false
 		} else {
 			ct, err := CompileExpression(then)
@@ -545,11 +544,11 @@ func compileCondExpr(expr interface{}) (Expression, error) {
 
 type zoomExpr struct{}
 
-func (z zoomExpr) Eval(ctx *Context) interface{} {
+func (z *zoomExpr) Eval(ctx *Context) interface{} {
 	return ctx.MinZoom()
 }
 
-func (z zoomExpr) EvalNum(ctx *Context) float64 {
+func (z *zoomExpr) EvalNum(ctx *Context) float64 {
 	return ctx.MinZoom()
 }
 
@@ -558,11 +557,11 @@ func (z zoomExpr) EvalNum(ctx *Context) float64 {
 
 type areaExpr struct{}
 
-func (a areaExpr) Eval(ctx *Context) interface{} {
+func (a *areaExpr) Eval(ctx *Context) interface{} {
 	return ctx.Area()
 }
 
-func (a areaExpr) EvalNum(ctx *Context) float64 {
+func (a *areaExpr) EvalNum(ctx *Context) float64 {
 	return ctx.Area()
 }
 
@@ -651,11 +650,11 @@ type numExpr struct {
 	Val float64
 }
 
-func (ne numExpr) Eval(ctx *Context) interface{} {
+func (ne *numExpr) Eval(ctx *Context) interface{} {
 	return ne.EvalNum(ctx)
 }
 
-func (ne numExpr) EvalNum(ctx *Context) float64 {
+func (ne *numExpr) EvalNum(ctx *Context) float64 {
 	return ne.Val
 }
 
@@ -666,7 +665,7 @@ type stringExpr struct {
 	Val string
 }
 
-func (se stringExpr) Eval(ctx *Context) interface{} {
+func (se *stringExpr) Eval(ctx *Context) interface{} {
 	return se.Val
 }
 
@@ -677,7 +676,7 @@ type boolExpr struct {
 	Val bool
 }
 
-func (be boolExpr) Eval(ctx *Context) interface{} {
+func (be *boolExpr) Eval(ctx *Context) interface{} {
 	return be.Val
 }
 
@@ -686,6 +685,6 @@ func (be boolExpr) Eval(ctx *Context) interface{} {
 
 type nilExpr struct{}
 
-func (ne nilExpr) Eval(ctx *Context) interface{} {
+func (ne *nilExpr) Eval(ctx *Context) interface{} {
 	return nil
 }

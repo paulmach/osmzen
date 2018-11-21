@@ -45,21 +45,27 @@ func NewContext(ctx *Context, feature *geojson.Feature) *Context {
 	if ctx == nil {
 		ctx = &Context{}
 	}
+
 	ctx.length = -1
 	ctx.area = -1
 	ctx.minZoom = -1
 
-	if feature != nil {
-		// during normal operation the type and id properties would have been
-		// set by the osm/osmgeojson package so we know they're valid.
-		ctx.FeatureID, _ = osm.Type(feature.Properties.MustString("type", "")).
-			FeatureID(int64(feature.Properties.MustInt("id", 0)))
+	ctx.ways = nil
+	ctx.relations = nil
 
-		// nil feature are sometimes passed in when testing.
-		// not setting one or both of these values will break lots of things.
-		ctx.Geometry = feature.Geometry
-		ctx.Tags = feature.Properties["tags"].(map[string]string)
+	if feature == nil {
+		return ctx
 	}
+
+	// during normal operation the type and id properties would have been
+	// set by the osm/osmgeojson package so we know they're valid.
+	ctx.FeatureID, _ = osm.Type(feature.Properties.MustString("type", "")).
+		FeatureID(int64(feature.Properties.MustInt("id", 0)))
+
+	// nil feature are sometimes passed in when testing.
+	// not setting one or both of these values will break lots of things.
+	ctx.Geometry = feature.Geometry
+	ctx.Tags = feature.Properties["tags"].(map[string]string)
 
 	return ctx
 }

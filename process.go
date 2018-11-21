@@ -74,13 +74,7 @@ func (c *Config) process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (map[st
 		return nil, errors.WithStack(err)
 	}
 
-	ctx := &zenContext{
-		Zoom:  z,
-		Bound: bound,
-		OSM:   data,
-	}
-	ctx.ComputeMembership()
-
+	ctx := newZenContext(data, bound, z)
 	return c.processGeoJSON(ctx, input, z)
 }
 
@@ -138,13 +132,7 @@ func (l *Layer) Process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (*geojso
 		return nil, errors.WithStack(err)
 	}
 
-	ctx := &zenContext{
-		Zoom:  z,
-		Bound: bound,
-		OSM:   data,
-	}
-	ctx.ComputeMembership()
-
+	ctx := newZenContext(data, bound, z)
 	return l.evalFeatures(ctx, input)
 }
 
@@ -152,15 +140,6 @@ func (l *Layer) evalFeatures(
 	ctx *zenContext,
 	input *geojson.FeatureCollection,
 ) (*geojson.FeatureCollection, error) {
-
-	// This is a cached, and reused version of the filter context
-	// to help reduce memory allocations.
-	ctx.fctx = &filter.Context{
-		OSM:                ctx.OSM,
-		WayMembership:      ctx.WayMembership,
-		RelationMembership: ctx.RelationMembership,
-	}
-
 	output := geojson.NewFeatureCollection()
 	for _, f := range input.Features {
 		// ways that intersect the tile many have interesting nodes outside the tile.
@@ -267,6 +246,26 @@ type zenContext struct {
 
 	// cache the object, save the allocs.
 	fctx *filter.Context
+}
+
+func newZenContext(data *osm.OSM, bound orb.Bound, z maptile.Zoom) *zenContext {
+	ctx := &zenContext{
+		Zoom:  z,
+		Bound: bound,
+		OSM:   data,
+	}
+
+	ctx.ComputeMembership()
+
+	// This is a cached, and reused version of the filter context
+	// to help reduce memory allocations.
+	ctx.fctx = &filter.Context{
+		OSM:                ctx.OSM,
+		WayMembership:      ctx.WayMembership,
+		RelationMembership: ctx.RelationMembership,
+	}
+
+	return ctx
 }
 
 func (ctx *zenContext) ComputeMembership() {

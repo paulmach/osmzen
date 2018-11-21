@@ -69,32 +69,15 @@ func (c *Config) ProcessElement(e osm.Element) (layer string, props geojson.Prop
 }
 
 func (c *Config) process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (map[string]*geojson.FeatureCollection, error) {
-	input, err := convertToGeoJSON(data, bound)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
 	ctx := newZenContext(data, bound, z)
-	return c.processGeoJSON(ctx, input, z)
-}
-
-func (c *Config) processGeoJSON(
-	ctx *zenContext,
-	input *geojson.FeatureCollection,
-	z maptile.Zoom,
-) (map[string]*geojson.FeatureCollection, error) {
-	result := make(map[string]*geojson.FeatureCollection, len(c.Layers))
-	for i := range c.orderedLayers {
-		f, err := c.orderedLayers[i].Layer.evalFeatures(ctx, input)
-		if err != nil {
-			return nil, err
-		}
-		result[c.orderedLayers[i].Name] = f
+	result, err := c.evalFeatures(ctx)
+	if err != nil {
+		return nil, err
 	}
 
 	// apply post processing
 	ppctx := &postprocess.Context{
-		Zoom:  float64(z),
+		Zoom:  float64(ctx.Zoom),
 		Bound: ctx.Bound,
 	}
 
@@ -122,59 +105,95 @@ func (c *Config) processGeoJSON(
 // Process will convert OSM data into a feature collection for that layer.
 // The zoom is used to do the correct post process filtering.
 func (l *Layer) Process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (*geojson.FeatureCollection, error) {
-	input, err := convertToGeoJSON(data, bound)
-	if err != nil {
-		return nil, errors.WithStack(err)
+	c := &Config{
+		orderedLayers: []orderedLayer{{Name: "layer", Layer: l}},
 	}
 
-	ctx := newZenContext(data, bound, z)
-	return l.evalFeatures(ctx, input)
+	result, err := c.process(data, bound, z)
+	if err != nil {
+		return nil, err
+	}
+
+	return result["layer"], nil
 }
 
-func (l *Layer) evalFeatures(
+func (c *Config) evalFeatures(
 	ctx *zenContext,
-	input *geojson.FeatureCollection,
-) (*geojson.FeatureCollection, error) {
-	output := geojson.NewFeatureCollection()
-	for _, f := range input.Features {
-		// ways that intersect the tile many have interesting nodes outside the tile.
-		// these nodes become geojson points that we want to skip.
-		if p, ok := f.Geometry.(orb.Point); ok {
-			if !ctx.Bound.Contains(p) {
-				continue
+) (map[string]*geojson.FeatureCollection, error) {
+	padded := geo.BoundPad(ctx.Bound, geo.BoundWidth(ctx.Bound))
+
+	output := make(map[string]*geojson.FeatureCollection, len(c.orderedLayers))
+	for i := range c.orderedLayers {
+		output[c.orderedLayers[i].Name] = geojson.NewFeatureCollection()
+	}
+
+	err := osmgeojson.VisitFeatures(ctx.OSM, func(f *geojson.Feature) error {
+		// The osmgeojson.IncludeInvalidPolygons option will allow us to get
+		// polygons with open outer rings or even completely missing outer rings
+		// if just the inners intersect the bounds. The missing outer rings need to be
+		// replaced with the bound. Open outer rings will "cropped and wrapped" towards
+		// the end of the whole process.
+		switch g := f.Geometry.(type) {
+		case orb.MultiPolygon:
+			for _, p := range g {
+				if len(p) > 0 && p[0] == nil {
+					p[0] = padded.ToRing()
+				}
+			}
+		case orb.Polygon:
+			if len(g) > 0 && g[0] == nil {
+				g[0] = padded.ToRing()
+			}
+		case orb.Point:
+			// ways that intersect the tile many have interesting nodes outside the tile.
+			// these nodes become geojson points that we want to skip.
+			if !ctx.Bound.Contains(g) {
+				return nil
 			}
 		}
 
-		feature, err := l.evalFeature(ctx, f)
-		if err != nil {
-			return nil, err
-		}
-
-		if feature == nil {
-			continue // no match
-		}
-
-		// big polygons may have pois that are not in the tile.
-		if p, ok := feature.Geometry.(orb.Point); ok {
-			if !ctx.Bound.Contains(p) {
+		ctx.fctx = filter.NewContext(ctx.fctx, f)
+		geoType := f.Geometry.GeoJSONType()
+		for i := range c.orderedLayers {
+			if !stringIn(geoType, c.orderedLayers[i].Layer.GeometryTypes) {
 				continue
 			}
+
+			feature, err := c.orderedLayers[i].Layer.evalFeature(ctx, f)
+			if err != nil {
+				return err
+			}
+
+			if feature == nil || len(feature.Properties) == 0 {
+				continue // no match
+			}
+
+			// big polygons may have pois that are not in the tile.
+			if p, ok := feature.Geometry.(orb.Point); ok {
+				if !ctx.Bound.Contains(p) {
+					continue
+				}
+			}
+
+			output[c.orderedLayers[i].Name].Append(feature)
 		}
 
-		output.Append(feature)
+		return nil
+	},
+		osmgeojson.IncludeInvalidPolygons(true),
+		osmgeojson.NoID(true),
+		osmgeojson.NoMeta(true),
+		osmgeojson.NoRelationMembership(true),
+	)
+	if err != nil {
+		return nil, errors.WithStack(err)
 	}
 
 	return output, nil
 }
 
 func (l *Layer) evalFeature(ctx *zenContext, feature *geojson.Feature) (*geojson.Feature, error) {
-	ctx.fctx = filter.NewContext(ctx.fctx, feature)
 	fctx := ctx.fctx
-
-	if !stringIn(fctx.Geometry.GeoJSONType(), l.GeometryTypes) {
-		return nil, nil
-	}
-
 	result, err := l.filterMatch(fctx)
 	if err != nil {
 		return nil, err
@@ -291,41 +310,6 @@ func (ctx *zenContext) ComputeMembership() {
 			ctx.RelationMembership[m.FeatureID()] = append(ctx.RelationMembership[m.FeatureID()], r)
 		}
 	}
-}
-
-func convertToGeoJSON(data *osm.OSM, bound orb.Bound) (*geojson.FeatureCollection, error) {
-	fc, err := osmgeojson.Convert(data,
-		osmgeojson.IncludeInvalidPolygons(true),
-		osmgeojson.NoID(true),
-		osmgeojson.NoMeta(true),
-		osmgeojson.NoRelationMembership(true),
-	)
-	if err != nil {
-		return nil, errors.WithStack(err)
-	}
-
-	// The osmgeojson.IncludeInvalidPolygons option will allow us to get
-	// polygons with open outer rings or even completely missing outer rings
-	// if just the inners intersect the bounds. The missing outer rings need to be
-	// replaced with the bound. Open outer rings will "cropped and wrapped" towards
-	// the end of the whole process.
-	padded := geo.BoundPad(bound, geo.BoundWidth(bound))
-	for _, f := range fc.Features {
-		switch g := f.Geometry.(type) {
-		case orb.MultiPolygon:
-			for _, p := range g {
-				if len(p) > 0 && p[0] == nil {
-					p[0] = padded.ToRing()
-				}
-			}
-		case orb.Polygon:
-			if len(g) > 0 && g[0] == nil {
-				g[0] = padded.ToRing()
-			}
-		}
-	}
-
-	return fc, nil
 }
 
 func stringIn(val string, list []string) bool {

@@ -84,17 +84,12 @@ func (c *Config) processGeoJSON(
 	z maptile.Zoom,
 ) (map[string]*geojson.FeatureCollection, error) {
 	result := make(map[string]*geojson.FeatureCollection, len(c.Layers))
-	for _, name := range c.All {
-		lc, ok := c.Layers[name]
-		if !ok {
-			return nil, errors.Errorf("layer not defined: %v", name)
-		}
-
-		f, err := lc.evalFeatures(ctx, input)
+	for i := range c.orderedLayers {
+		f, err := c.orderedLayers[i].Layer.evalFeatures(ctx, input)
 		if err != nil {
 			return nil, err
 		}
-		result[name] = f
+		result[c.orderedLayers[i].Name] = f
 	}
 
 	// apply post processing

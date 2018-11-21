@@ -25,6 +25,13 @@ type Config struct {
 
 	postProcessors []postprocess.Function
 	clipFactors    map[string]float64
+
+	orderedLayers []orderedLayer
+}
+
+type orderedLayer struct {
+	Name  string
+	Layer *Layer
 }
 
 // Layer defines config for a single layer.
@@ -101,6 +108,18 @@ func loadConfig(data []byte, asset func(name string) ([]byte, error)) (*Config, 
 		}
 
 		c.postProcessors = append(c.postProcessors, f)
+	}
+
+	// we use an ordered set of layers vs a map for slightly better performance
+	c.orderedLayers = make([]orderedLayer, len(c.All))
+	for i, name := range c.All {
+		lc, ok := c.Layers[name]
+		if !ok {
+			return nil, errors.Errorf("layer not defined: %v", name)
+		}
+
+		c.orderedLayers[i].Name = name
+		c.orderedLayers[i].Layer = lc
 	}
 
 	return c, nil

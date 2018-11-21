@@ -257,10 +257,19 @@ The last benchmark leaves out the osm data to GeoJSON step and just does the fil
 and processing unique to this package.
 
 ```
-BenchmarkBuildings-4      200000        9969 ns/op       1040 B/op       42 allocs/op
-BenchmarkPOIs-4            10000      171457 ns/op       6816 B/op      450 allocs/op
-BenchmarkFullTile-4          100    11292314 ns/op    3611916 B/op    26555 allocs/op
-BenchmarkProcessGeoJSON-4    200     8091129 ns/op    1978560 B/op    18319 allocs/op
+BenchmarkBuildings-4      200000       9969 ns/op       1040 B/op       42 allocs/op
+BenchmarkPOIs-4            10000     171457 ns/op       6816 B/op      450 allocs/op
+BenchmarkFullTile-4          100   11292314 ns/op    3611916 B/op    26555 allocs/op
+BenchmarkProcessGeoJSON-4    200    8091129 ns/op    1978560 B/op    18319 allocs/op
+```
+
+New benchmarks using v1.5.1 and go version 1.11.2
+
+```
+BenchmarkBuildings-4      300000       5525 ns/op        536 B/op       42 allocs/op
+BenchmarkPOIs-4            20000      80353 ns/op       8264 B/op      546 allocs/op
+BenchmarkFullTile-4          200    8736833 ns/op    2639975 B/op    22412 allocs/op
+BenchmarkProcessGeoJSON-4    200    6367984 ns/op    1198285 B/op    12874 allocs/op
 ```
 
 These benchmarks were run on a 2017 MacBook Pro with a 3.1 ghz processor and 8 gigs of ram.

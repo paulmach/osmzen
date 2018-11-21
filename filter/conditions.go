@@ -130,6 +130,7 @@ func compileAllCond(cond interface{}) (Condition, error) {
 		return ac[0], nil
 	}
 
+	conditionSort(ac)
 	return &ac, nil
 }
 
@@ -191,6 +192,7 @@ func compileAnyCond(cond interface{}) (Condition, error) {
 		return ac[0], nil
 	}
 
+	conditionSort(ac)
 	return &ac, nil
 }
 
@@ -210,6 +212,7 @@ func compileNotCond(cond interface{}) (Condition, error) {
 	if err != nil {
 		return nil, errors.WithMessage(err, "not")
 	}
+	// log.Printf("not %T", c)
 	return &notCond{Condition: c}, nil
 }
 
@@ -457,6 +460,9 @@ type stringInCond struct {
 
 func (sc *stringInCond) Eval(ctx *Context) bool {
 	val := ctx.Tags[sc.Key]
+	if val == "" {
+		return false
+	}
 	for _, l := range sc.List {
 		if val == l {
 			return true

@@ -30,6 +30,77 @@ global:
         - [ 7,   9 ]
       default: null
 
+  #
+  - &ne_country_boundaries_kind
+    lookup:
+      key: { col: featurecla }
+      op: '=='
+      table:
+        - [ 'disputed', 'Disputed (please verify)' ]
+        - [ 'indefinite', 'Indefinite (please verify)' ]
+        - [ 'indeterminate', 'Indeterminant frontier' ]
+        - [ 'country', 'International boundary (verify)' ]
+        - [ 'lease_limit', 'Lease limit' ]
+        - [ 'line_of_control', 'Line of control (please verify)' ]
+        - [ 'overlay_limit', 'Overlay limit' ]
+        - [ 'unrecognized_country', 'Unrecognized' ]
+        - [ 'map_unit', 'Map unit boundary' ]
+        - [ 'disputed_breakaway', 'Breakaway' ]
+        - [ 'disputed_claim', 'Claim boundary' ]
+        - [ 'disputed_elusive', 'Elusive frontier' ]
+        - [ 'disputed_reference_line', 'Reference line' ]
+      default: null
+
+  - &ne_localized_kind_properties
+    'kind:iso': {col: fclass_iso }
+    'kind:ar': {col: fclass_ar }
+    'kind:bd': {col: fclass_bd }
+    'kind:br': {col: fclass_br }
+    'kind:cn': {col: fclass_cn }
+    'kind:de': {col: fclass_de }
+    'kind:eg': {col: fclass_eg }
+    'kind:es': {col: fclass_es }
+    'kind:fr': {col: fclass_fr }
+    'kind:gb': {col: fclass_gb }
+    'kind:gr': {col: fclass_gr }
+    'kind:id': {col: fclass_id }
+    'kind:il': {col: fclass_il }
+    'kind:in': {col: fclass_in }
+    'kind:it': {col: fclass_it }
+    'kind:jp': {col: fclass_jp }
+    'kind:ko': {col: fclass_ko }
+    'kind:ma': {col: fclass_ma }
+    'kind:nl': {col: fclass_nl }
+    'kind:np': {col: fclass_np }
+    'kind:pk': {col: fclass_pk }
+    'kind:pl': {col: fclass_pl }
+    'kind:ps': {col: fclass_ps }
+    'kind:pt': {col: fclass_pt }
+    'kind:ru': {col: fclass_ru }
+    'kind:sa': {col: fclass_sa }
+    'kind:se': {col: fclass_se }
+    'kind:tr': {col: fclass_tr }
+    'kind:tw': {col: fclass_tw }
+    'kind:us': {col: fclass_us }
+    'kind:vn': {col: fclass_vn }
+
+  # this is a hack to get around the fact that boundary features with the same
+  # tags exist in both the polygons and lines table. osm2pgsql makes geometries
+  # for boundary polygon relations, but there are also a lot of boundary way
+  # lines which match the same filters.
+  #
+  # this excludes them by looking for only polygons and then setting the
+  # mz_boundary_from_polygon flag when the geometry is converted back to a
+  # linestring. since that flag shouldn't exist in the original data, we exclude
+  # the features in the plant_osm_line table (except those we actually want -
+  # disputes and claims).
+  - &boundary_poly
+    any:
+      - geom_type: polygon
+      - all:
+          - geom_type: line
+          - mz_boundary_from_polygon: true
+
 filters:
 
   # kind pre-generated for buffered_land
@@ -41,16 +112,73 @@ filters:
       <<: *output_properties
       kind: {col: kind}
 
+  # OSM disputed boundaries
+  #
+  # we track two kinds of features from OSM for indicating disputes:
+  #
+  # 1. **claims**, which have `boundary=claim, claimed_by=*, admin_level=*`
+  #    tags. these indicate borders which aren't generally recognized, but
+  #    should appear in the viewpoint of the `claimed_by=` value. additionally,
+  #    extra viewpoints which don't make a claim for themselves but still want
+  #    the claimant's view reflected in their own can be specified in a
+  #    `recognized_by=*` tag.
+  #
+  # 2. **disputes**, which have `dispute=yes` or `disputed=yes`, plus a list of
+  #    disputant viewpoints in the `disputed_by=*` tag. when a viewpoint is
+  #    listed in `disputed_by` then the boundary will have its `kind:xx` set to
+  #    `unrecognized_*` (where XX is the viewpoint / country code and * is the
+  #    kind of boundary it is).
+  #
+  - filter: {admin_level: '2', boundary: claim, claimed_by: true, geom_type: line}
+    min_zoom: 8
+    output:
+      <<: *output_properties
+      kind: unrecognized_country
+      claimed_by: {col: claimed_by}
+      recognized_by: {col: recognized_by}
+    table: osm
+  - filter: {admin_level: '4', boundary: claim, claimed_by: true, geom_type: line}
+    min_zoom: 8
+    output:
+      <<: *output_properties
+      kind: unrecognized_region
+      claimed_by: {col: claimed_by}
+      recognized_by: {col: recognized_by}
+    table: osm
+  - filter: {admin_level: '6', boundary: claim, claimed_by: true, geom_type: line}
+    min_zoom: 8
+    output:
+      <<: *output_properties
+      kind: unrecognized_county
+      claimed_by: {col: claimed_by}
+      recognized_by: {col: recognized_by}
+    table: osm
+  - filter:
+      all:
+        - geom_type: line
+        - disputed_by: true
+        - any:
+            - dispute: 'yes'
+            - disputed: 'yes'
+    min_zoom: 8
+    output:
+      <<: *output_properties
+      kind: mz_internal_dispute_mask
+      disputed_by: {col: disputed_by}
+    table: osm
+
   # osm
   - filter:
-      any:
-        - all:
-            boundary: administrative
-            boundary:type: aboriginal_lands
-        - all:
-            boundary: protected_area
-            protect_class: '24'
-        - boundary: aboriginal_lands
+      all:
+        - *boundary_poly
+        - any:
+          - all:
+              boundary: administrative
+              boundary:type: aboriginal_lands
+          - all:
+              boundary: protected_area
+              protect_class: '24'
+          - boundary: aboriginal_lands
     min_zoom: 8
     output:
       <<: *output_properties
@@ -61,29 +189,33 @@ filters:
               admin_level: ['2', '4', '6', '8']
             then: { col: admin_level }
     table: osm
-  - filter: {admin_level: '2', boundary: administrative}
+  - filter: {admin_level: '2', boundary: administrative, <<: *boundary_poly}
     min_zoom: 8
     output:
       <<: *output_properties
       kind: country
       kind_detail: '2'
     table: osm
-  - filter: {admin_level: '4', boundary: administrative}
+  - filter: {admin_level: '4', boundary: administrative, <<: *boundary_poly}
     min_zoom: 8
     output:
       <<: *output_properties
       kind: region
       kind_detail: '4'
     table: osm
-  - filter: {admin_level: '6', boundary: administrative}
+  - filter: {admin_level: '6', boundary: administrative, <<: *boundary_poly}
     min_zoom: 10
     output:
       <<: *output_properties
       kind: county
       kind_detail: '6'
     table: osm
-  - filter: {admin_level: '8', boundary: administrative}
-    min_zoom: 10
+  # NOTE: the min_zoom of 11 here needs to be reflected in the early
+  # name-dropping in queries.yaml - so that the two match and we don't get
+  # names popping in and out. if the min_zoom is changed here, then it should
+  # also be changed there (and vice-versa)!
+  - filter: {admin_level: '8', boundary: administrative, <<: *boundary_poly}
+    min_zoom: 11
     output:
       <<: *output_properties
       kind: locality
@@ -91,66 +223,36 @@ filters:
     table: osm
 
   # ne
-  - filter: {featurecla: Disputed (please verify)}
-    min_zoom: 0
+  - filter:
+      featurecla:
+        - 'Disputed (please verify)'
+        - 'Indefinite (please verify)'
+        - 'Indeterminant frontier'
+        - 'International boundary (verify)'
+        - 'Lease limit'
+        - 'Line of control (please verify)'
+        - 'Overlay limit'
+        - 'Unrecognized'
+        - 'Map unit boundary'
+        - 'Breakaway'
+        - 'Claim boundary'
+        - 'Elusive frontier'
+        - 'Reference line'
+    min_zoom: { col: min_zoom }
     output:
       <<: *output_properties
-      kind: disputed
+      <<: *ne_localized_kind_properties
+      kind: *ne_country_boundaries_kind
       kind_detail: '2'
     table: ne
-  - filter: {featurecla: Indefinite (please verify)}
-    min_zoom: 0
-    output:
-      <<: *output_properties
-      kind: indefinite
-      kind_detail: '2'
-    table: ne
-  - filter: {featurecla: Indeterminant frontier}
-    min_zoom: 0
-    output:
-      <<: *output_properties
-      kind: indeterminate
-      kind_detail: '2'
-    table: ne
-  - filter: {featurecla: International boundary (verify)}
-    min_zoom: 0
-    output:
-      <<: *output_properties
-      kind: country
-      kind_detail: '2'
-    table: ne
-  - filter: {featurecla: Lease limit}
-    min_zoom: 0
-    output:
-      <<: *output_properties
-      kind: lease_limit
-      kind_detail: '2'
-    table: ne
-  - filter: {featurecla: Line of control (please verify)}
-    min_zoom: 0
-    output:
-      <<: *output_properties
-      kind: line_of_control
-      kind_detail: '2'
-    table: ne
-  - filter: {featurecla: Overlay limit}
-    min_zoom: 0
-    output:
-      <<: *output_properties
-      kind: overlay_limit
-      kind_detail: '2'
-    table: ne
-  - filter: {featurecla: Map unit boundary}
-    min_zoom: 5
-    output:
-      <<: *output_properties
-      kind: map_unit
-      kind_detail: '2'
-    table: ne
-  - filter: {featurecla: Admin-1 region boundary}
+
+  - filter:
+      featurecla:
+        - Admin-1 region boundary
     min_zoom: *ne_region_boundaries_min_zoom
     output:
       <<: *output_properties
+      <<: *ne_localized_kind_properties
       kind: macroregion
       kind_detail: '3'
     extra_columns: [scalerank]
@@ -165,6 +267,31 @@ filters:
     extra_columns: [scalerank]
     output:
       <<: *output_properties
+      <<: *ne_localized_kind_properties
       kind: region
+      kind_detail: '4'
+    table: ne
+  - filter:
+      featurecla:
+        - Unrecognized Admin-1 region boundary
+    min_zoom: *ne_region_boundaries_min_zoom
+    extra_columns: [scalerank]
+    output:
+      <<: *output_properties
+      <<: *ne_localized_kind_properties
+      kind: unrecognized_macroregion
+      kind_detail: '4'
+    table: ne
+  - filter:
+      featurecla:
+        - Unrecognized Admin-1 boundary
+        - Unrecognized Admin-1 statistical boundary
+        - Unrecognized Admin-1 statistical meta bounds
+    min_zoom: *ne_region_boundaries_min_zoom
+    extra_columns: [scalerank]
+    output:
+      <<: *output_properties
+      <<: *ne_localized_kind_properties
+      kind: unrecognized_region
       kind_detail: '4'
     table: ne

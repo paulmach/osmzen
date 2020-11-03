@@ -189,12 +189,22 @@ func placePopulation(ctx *filter.Context, feature *geojson.Feature) {
 	}
 }
 
+// poisCapacity makes sure that the capacity is a number.
 func poisCapacity(ctx *filter.Context, feature *geojson.Feature) {
-	capacity := feature.Properties.MustString("capacity", "")
-	if f, ok := util.ToFloat64(capacity); ok {
-		feature.Properties["capacity"] = math.Floor(f)
-	} else {
-		delete(feature.Properties, "capacity")
+	capacity, ok := feature.Properties["capacity"]
+	if !ok {
+		return
+	}
+
+	switch c := capacity.(type) {
+	case string:
+		if f, ok := util.ToFloat64(c); ok {
+			feature.Properties["capacity"] = math.Floor(f)
+		} else {
+			delete(feature.Properties, "capacity")
+		}
+	case float64:
+		feature.Properties["capacity"] = math.Floor(c)
 	}
 }
 

@@ -109,6 +109,90 @@ func BenchmarkPOIs(b *testing.B) {
 	}
 }
 
+// The matching benchmarks are to validate there are no allocations
+// during layer matching.
+
+func BenchmarkMatching_boundaries(b *testing.B) {
+	matchLayer(b, "boundaries")
+}
+
+func BenchmarkMatching_buildings(b *testing.B) {
+	matchLayer(b, "buildings")
+}
+
+func BenchmarkMatching_earth(b *testing.B) {
+	matchLayer(b, "earth")
+}
+
+func BenchmarkMatching_landuse(b *testing.B) {
+	matchLayer(b, "landuse")
+}
+
+func BenchmarkMatching_places(b *testing.B) {
+	matchLayer(b, "places")
+}
+
+func BenchmarkMatching_pois(b *testing.B) {
+	matchLayer(b, "pois")
+}
+
+func BenchmarkMatching_roads(b *testing.B) {
+	matchLayer(b, "roads")
+}
+
+func BenchmarkMatching_transit(b *testing.B) {
+	matchLayer(b, "transit")
+}
+
+func BenchmarkMatching_water(b *testing.B) {
+	matchLayer(b, "water")
+}
+
+func matchLayer(b *testing.B, name string) {
+	// Runtime for these benchmarks depend on the number of filters.
+	// They are here to validate that there are no allocations.
+	config, err := Load("config/queries.yaml")
+	if err != nil {
+		b.Fatalf("unable to load config: %v", err)
+	}
+	layer := config.Layers[name]
+
+	o := &osm.OSM{
+		Nodes: osm.Nodes{
+			{
+				ID:      1,
+				Version: 2,
+				Tags: osm.Tags{
+					{Key: "amenity", Value: "restaurant"},
+					{Key: "cuisine", Value: "burger"},
+					{Key: "name", Value: "Kronnerburger"},
+				},
+			},
+		},
+	}
+
+	fc, err := osmgeojson.Convert(o,
+		osmgeojson.NoID(true),
+		osmgeojson.NoMeta(true),
+		osmgeojson.NoRelationMembership(true),
+	)
+	if err != nil {
+		b.Errorf("failed to convert to geojson: %v", err)
+	}
+
+	ctx := filter.NewContext(nil, fc.Features[0])
+	ctx.Debug = true
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		for _, f := range layer.filters {
+			f.Match(ctx)
+		}
+	}
+}
+
 func benchmarkLayer(layer *Layer, ctx *filter.Context) {
 	ctx.Debug = true
 

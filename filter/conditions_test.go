@@ -3,6 +3,7 @@ package filter
 import (
 	"testing"
 
+	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/osm"
 	"github.com/paulmach/osm/osmgeojson"
@@ -218,6 +219,74 @@ filter:
 			ctx.Debug = true
 
 			v := filter.Filter.Eval(ctx)
+			if v != tc.result {
+				t.Errorf("wrong result: %v != %v", v, tc.result)
+			}
+		})
+	}
+}
+
+func TestGeometryType(t *testing.T) {
+	cases := []struct {
+		name   string
+		cond   interface{}
+		geom   orb.Geometry
+		result bool
+	}{
+		{
+			name:   "match point type lower case",
+			cond:   "point",
+			geom:   orb.Point{},
+			result: true,
+		},
+		{
+			name:   "match polygon type lower case",
+			cond:   "polygon",
+			geom:   orb.Polygon{},
+			result: true,
+		},
+		{
+			name:   "match multipolygon type lower case",
+			cond:   "multipolygon",
+			geom:   orb.MultiPolygon{},
+			result: true,
+		},
+		{
+			name:   "match linestring in array",
+			cond:   []interface{}{"point", "linestring", "multilinestring"},
+			geom:   orb.LineString{},
+			result: true,
+		},
+		{
+			name:   "match multilinestring in array",
+			cond:   []interface{}{"point", "linestring", "multilinestring"},
+			geom:   orb.MultiLineString{},
+			result: true,
+		},
+		{
+			name:   "line should match linestring",
+			cond:   "line",
+			geom:   orb.LineString{},
+			result: true,
+		},
+		{
+			name:   "line should match multilinestring",
+			cond:   "line",
+			geom:   orb.MultiLineString{},
+			result: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			cond, err := compileGeometryTypesCond(tc.cond)
+			if err != nil {
+				t.Fatalf("condition compile error: %v", err)
+			}
+
+			v := cond.Eval(&Context{
+				Geometry: tc.geom,
+			})
 			if v != tc.result {
 				t.Errorf("wrong result: %v != %v", v, tc.result)
 			}

@@ -254,12 +254,18 @@ func compileOSMTagsCond(cond interface{}) (Condition, error) {
 ///////////////////////////////////////
 // geometryTypesCond
 
+type geometryTypesCondSingle string
+
+func (gtc geometryTypesCondSingle) Eval(ctx *Context) bool {
+	return string(gtc) == ctx.Geometry.GeoJSONType()
+}
+
 type geometryTypesCond struct {
 	Types []string
 }
 
 func (gtc *geometryTypesCond) Eval(ctx *Context) bool {
-	val := strings.ToLower(ctx.Geometry.GeoJSONType())
+	val := ctx.Geometry.GeoJSONType()
 	for _, t := range gtc.Types {
 		if t == val {
 			return true
@@ -267,6 +273,16 @@ func (gtc *geometryTypesCond) Eval(ctx *Context) bool {
 	}
 
 	return false
+}
+
+var geometryTypeMappings = map[string][]string{
+	"point":           []string{"Point"},
+	"multipoint":      []string{"MultiPoint"},
+	"line":            []string{"LineString", "MultiLineString"},
+	"linestring":      []string{"LineString"},
+	"multilinestring": []string{"MultiLineString"},
+	"polygon":         []string{"Polygon"},
+	"multipolygon":    []string{"MultiPolygon"},
 }
 
 func compileGeometryTypesCond(cond interface{}) (Condition, error) {
@@ -280,13 +296,23 @@ func compileGeometryTypesCond(cond interface{}) (Condition, error) {
 		return nil, errors.Errorf("geometry_types/geom_type: requires array of strings or string: (%T, %v)", cond, cond)
 	}
 
-	types := make([]string, len(condArray))
-	for i, c := range condArray {
-		if s, ok := c.(string); ok {
-			types[i] = strings.ToLower(s)
-		} else {
+	var types []string
+	for _, c := range condArray {
+		s, ok := c.(string)
+		if !ok {
 			return nil, errors.Errorf("geometry_types: requires array of strings: (%T, %v)", c, c)
 		}
+
+		values, ok := geometryTypeMappings[strings.ToLower(s)]
+		if !ok {
+			return nil, errors.Errorf("geometry_types: invalid type: %v", s)
+		}
+
+		types = append(types, values...)
+	}
+
+	if len(types) == 1 {
+		return geometryTypesCondSingle(types[0]), nil
 	}
 	return &geometryTypesCond{Types: types}, nil
 }

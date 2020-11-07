@@ -34,12 +34,18 @@ var transforms = map[string]Transform{
 	"add_road_network_from_ncat": nil, // south korea road network thing
 	"remove_zero_area":           nil,
 
-	// not needed we already do this filter.Context.MinZoom()
+	// not needed we filter to 2dp in filter.Context.MinZoom()
+	"truncate_min_zoom_to_1dp": nil,
 	"truncate_min_zoom_to_2dp": nil,
 
 	"detect_osm_relation":              detectOSMRelation,
 	"water_tunnel":                     waterTunnel,
 	"place_population_int":             placePopulation,
+	"population_rank":                  populationRank,
+	"capital_alternate_viewpoint":      nil, // works on Natural Earth data.
+	"remap_viewpoint_kinds":            nil, // works on NE boundary data only
+	"unpack_viewpoint_claims":          nil, // works on NE boundary data only
+	"major_airport_detector":           majorAirportDetector,
 	"calculate_default_place_min_zoom": calculateDefaultPlaceMinZoom,
 	"normalize_tourism_kind":           normalizeTourismKind,
 	"normalize_operator_values":        normalizeOperatorValues,
@@ -52,6 +58,7 @@ var transforms = map[string]Transform{
 	"normalize_cycleway":               normalizeCycleway,
 	"add_is_bicycle_related":           addIsBicycleRelated,
 	"road_trim_properties":             roadTrimProperties,
+	"add_vehicle_restrictions":         addVehicleRestrictions,
 
 	"building_height":          buildingHeight,
 	"building_min_height":      buildingMinHeight,
@@ -66,6 +73,7 @@ var transforms = map[string]Transform{
 	"make_representative_point": makeRepresentativePoint,
 	"height_to_meters":          heightToMeters,
 	"pois_capacity_int":         poisCapacity,
+	"pois_direction_int":        poisDirectionInt,
 	"elevation_to_meters":       elevationToMeters,
 	"admin_level_as_int":        adminLevelAsNum,
 }
@@ -189,6 +197,74 @@ func placePopulation(ctx *filter.Context, feature *geojson.Feature) {
 	}
 }
 
+func populationRank(ctx *filter.Context, feature *geojson.Feature) {
+	population := feature.Properties.MustString("population", "")
+	pop, ok := util.ToFloat64(population)
+	if !ok {
+		delete(feature.Properties, "population")
+		return
+	}
+
+	breaks := []float64{
+		1000000000,
+		100000000,
+		50000000,
+		20000000,
+		10000000,
+		5000000,
+		1000000,
+		500000,
+		200000,
+		100000,
+		50000,
+		20000,
+		10000,
+		5000,
+		2000,
+		1000,
+		200,
+		0,
+	}
+	for i, b := range breaks {
+		if pop > b {
+			feature.Properties["population_rank"] = len(breaks) - i
+			return
+		}
+	}
+}
+
+// https://github.com/tilezen/vector-datasource/blob/e47198d1244356ba332ad7c9005f3a596d2901cb/vectordatasource/transform.py#L9198-L9222
+func majorAirportDetector(ctx *filter.Context, feature *geojson.Feature) {
+	if feature.Properties.MustString("kind") != "aerodrome" {
+		return
+	}
+
+	detail := feature.Properties.MustString("kind_detail", "")
+
+	// passenger count is a safe_int as defined in landuse.yaml
+	passengers := feature.Properties.MustInt("passenger_count", 0)
+
+	if detail != "international" && passengers > 1000000 {
+		// if we didn't detect that the airport is international (probably
+		// missing tagging to indicate that), but it carries over a million
+		// passengers a year, then it's probably an airport in the same class
+		// as an international one.
+		//
+		// for example, TPE (Taipei) airport hasn't got any international
+		// tagging, but carries over 45 million passengers a year. however,
+		// CGH (Sao Paulo Congonhas) carries 21 million, but is actually a
+		// domestic airport -- however it's so large we'd probably want to
+		// display it at the same scale as an international airport.
+		feature.Properties["kind_detail"] = "international"
+
+	} else if detail == "" && passengers > 10000 {
+		// likewise, if we didn't detect a kind detail, but the number of
+		// passengers suggests it's more than just a flying club airfield,
+		// then set a regional kind_detail.
+		feature.Properties["kind_detail"] = "regional"
+	}
+}
+
 // poisCapacity makes sure that the capacity is a number.
 func poisCapacity(ctx *filter.Context, feature *geojson.Feature) {
 	capacity, ok := feature.Properties["capacity"]
@@ -206,6 +282,19 @@ func poisCapacity(ctx *filter.Context, feature *geojson.Feature) {
 	case float64:
 		feature.Properties["capacity"] = math.Floor(c)
 	}
+}
+
+func poisDirectionInt(ctx *filter.Context, feature *geojson.Feature) {
+	direction, ok := feature.Properties["direction"].(string)
+	if !ok {
+		return
+	}
+
+	deg, ok := util.ToDegrees(direction)
+	if !ok {
+		delete(feature.Properties, "direction")
+	}
+	feature.Properties["direction"] = deg
 }
 
 func waterTunnel(ctx *filter.Context, feature *geojson.Feature) {

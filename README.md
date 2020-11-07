@@ -1,4 +1,4 @@
-osmzen [![Build Status](https://travis-ci.org/paulmach/osmzen.svg?branch=master)](https://travis-ci.org/paulmach/osmzen) [![Go Report Card](https://goreportcard.com/badge/github.com/paulmach/osmzen)](https://goreportcard.com/report/github.com/paulmach/osmzen) [![Godoc Reference](https://godoc.org/github.com/paulmach/osmzen?status.svg)](https://godoc.org/github.com/paulmach/osmzen)
+osmzen [![CI](https://github.com/paulmach/osmzen/workflows/CI/badge.svg)](https://github.com/paulmach/osmzen/actions?query=workflow%3ACI+event%3Apush) [![Go Report Card](https://goreportcard.com/badge/github.com/paulmach/osmzen)](https://goreportcard.com/report/github.com/paulmach/osmzen) [![Godoc Reference](https://godoc.org/github.com/paulmach/osmzen?status.svg)](https://godoc.org/github.com/paulmach/osmzen)
 ======
 
 This is a port of [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) developed by

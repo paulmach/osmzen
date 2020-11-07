@@ -104,3 +104,46 @@ func TestBuildingHeight(t *testing.T) {
 		})
 	}
 }
+
+func TestOneDecimalPoint(t *testing.T) {
+	cases := []struct {
+		name   string
+		val    float64
+		result string
+	}{
+		{
+			name:   "no factions",
+			val:    100,
+			result: "100",
+		},
+		{
+			name:   "1 decimal",
+			val:    100.10,
+			result: "100.1",
+		},
+		{
+			name:   "2 decimal",
+			val:    100.17,
+			result: "100.2",
+		},
+		{
+			name:   "3 decimal",
+			val:    100.123,
+			result: "100.1",
+		},
+		{
+			name:   "large numbers",
+			val:    12000,
+			result: "12000",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			v := OneDecimalPoint(tc.val)
+			if v != tc.result {
+				t.Errorf("result not correct: %v != %v", v, tc.result)
+			}
+		})
+	}
+}

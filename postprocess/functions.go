@@ -42,7 +42,7 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"merge_duplicate_stations":           nil,
 	"normalize_station_properties":       nil,
 	"rank_features":                      nil,
-	"update_parenthetical_properties":    nil, // TODO
+	"update_parenthetical_properties":    compileUpdateParentheticalProperties,
 	"keep_n_features":                    nil,
 	"drop_properties_with_prefix":        nil,
 	"drop_small_inners":                  nil,
@@ -648,6 +648,94 @@ func compileDropNames(ctx *CompileContext, c *Config) (Function, error) {
 		}
 
 		f.EndZoom = float64(z)
+	}
+
+	return f, nil
+}
+
+// If a feature's name ends with a set of values in parens, update
+// its kind and increase the min_zoom appropriately.
+type updateParentheticalProperties struct {
+	Layer         string
+	TargetMinZoom float64
+	DropBelowZoom float64
+	Values        []string
+	PValues       []string
+}
+
+func (f *updateParentheticalProperties) Eval(ctx *Context, layers map[string]*geojson.FeatureCollection) {
+	layer := layers[f.Layer]
+	if layer == nil {
+		return
+	}
+
+	at := 0
+features:
+	for _, feature := range layer.Features {
+		// check every property to see if it ends with the (*) type values
+
+		for _, prop := range feature.Properties {
+			for i, val := range f.PValues {
+				if p, ok := prop.(string); ok && strings.HasSuffix(p, val) {
+					feature.Properties["kind"] = f.Values[i]
+					feature.Properties["min_zoom"] = f.TargetMinZoom
+					if ctx.Zoom < f.DropBelowZoom {
+						continue features
+					}
+				}
+			}
+		}
+
+		layer.Features[at] = feature
+		at++
+	}
+
+	layer.Features = layer.Features[:at]
+}
+
+func compileUpdateParentheticalProperties(ctx *CompileContext, c *Config) (Function, error) {
+	f := &updateParentheticalProperties{}
+
+	f.Layer = c.Params["source_layer"].(string)
+
+	if _, ok := c.Params["start_zoom"]; ok {
+		return nil, errors.New("update_parenthetical_properties: start_zoom not supported")
+	}
+
+	if _, ok := c.Params["end_zoom"]; ok {
+		return nil, errors.New("update_parenthetical_properties: start_zoom not supported")
+	}
+
+	tz, ok := c.Params["target_min_zoom"]
+	if ok {
+		z, ok := tz.(int)
+		if !ok {
+			return nil, errors.New("update_parenthetical_properties: target zoom must be an integer")
+		}
+
+		f.TargetMinZoom = float64(z)
+	}
+
+	dz, ok := c.Params["drop_below_zoom"]
+	if ok {
+		z, ok := dz.(int)
+		if !ok {
+			return nil, errors.New("update_parenthetical_properties: drop_below_zoom must be an integer")
+		}
+
+		f.DropBelowZoom = float64(z)
+	} else {
+		return nil, errors.New("update_parenthetical_properties: drop_below_zoom is required")
+	}
+
+	v, ok := c.Params["values"]
+	if ok {
+		f.Values = parseStrings(v)
+		for _, v := range f.Values {
+			f.PValues = append(f.PValues, "("+v+")")
+		}
+	} else {
+		return nil, errors.New("update_parenthetical_properties: values are required")
 	}
 
 	return f, nil

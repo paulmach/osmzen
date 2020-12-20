@@ -4,25 +4,29 @@ import (
 	"testing"
 
 	"github.com/paulmach/orb/geojson"
+	"github.com/paulmach/osm"
 )
 
 func TestClampMinZoom(t *testing.T) {
-	tile := processData(t, []byte(`
-		<osm>
-		 <way id="22942652" visible="true" version="6">
-		  <nd ref="1" version="3" lat="0" lon="0"></nd>
-		  <nd ref="2" version="3" lat="0.001" lon="0"></nd>
-		  <nd ref="3" version="3" lat="0.001" lon="-0.001"></nd>
-		  <nd ref="4" version="3" lat="0" lon="-0.001"></nd>
-		  <nd ref="1" version="3" lat="0" lon="0"></nd>
-		  <tag k="amenity" v="parking"></tag>
-		  <tag k="building" v="yes"></tag>
-		  <tag k="building:levels" v="7"></tag>
-		  <tag k="name" v="parking garage"></tag>
-		  <tag k="parking" v="multi-storey"></tag>
-		 </way>
-		</osm>
-	`))
+	data := &osm.OSM{
+		Ways: osm.Ways{
+			{ID: 1, Visible: true, Nodes: osm.WayNodes{
+				{ID: 3}, {ID: 4}, {ID: 5}, {ID: 3},
+			}, Tags: osm.Tags{
+				{Key: "amenity", Value: "parking"},
+				{Key: "building", Value: "yes"},
+				{Key: "building:levels", Value: "7"},
+				{Key: "name", Value: "parking garage"},
+				{Key: "parking", Value: "multi-storey"},
+			}},
+		},
+		Nodes: osm.Nodes{
+			{ID: 3, Lat: 0.001, Lon: 0.0000, Version: 1, Visible: true},
+			{ID: 4, Lat: 0.001, Lon: -0.001, Version: 1, Visible: true},
+			{ID: 5, Lat: 0.000, Lon: -0.001, Version: 1, Visible: true},
+		},
+	}
+	tile := processOSM(t, data)
 
 	feature := tile["buildings"].Features[0]
 	if gt := feature.Geometry.GeoJSONType(); gt != geojson.TypePolygon {

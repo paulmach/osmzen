@@ -11,6 +11,16 @@ import (
 	"github.com/paulmach/osmzen"
 )
 
+var config *osmzen.Config
+
+func init() {
+	var err error
+	config, err = osmzen.Load("../config/queries.yaml")
+	if err != nil {
+		panic(err)
+	}
+}
+
 func partialMatch(t *testing.T, actual, expected geojson.Properties) {
 	t.Helper()
 
@@ -32,19 +42,25 @@ func partialMatch(t *testing.T, actual, expected geojson.Properties) {
 	}
 }
 
-func processData(t *testing.T, data []byte) map[string]*geojson.FeatureCollection {
+func processData(t *testing.T, data []byte, zooms ...int) map[string]*geojson.FeatureCollection {
 	o := &osm.OSM{}
 	err := xml.Unmarshal([]byte(data), &o)
 	if err != nil {
 		t.Fatalf("unable to unmarshal xml: %v", err)
 	}
 
-	config, err := osmzen.Load("../config/queries.yaml")
-	if err != nil {
-		t.Fatalf("unable to load layer: %v", err)
+	return processOSM(t, o, zooms...)
+}
+
+func processOSM(t *testing.T, o *osm.OSM, zooms ...int) map[string]*geojson.FeatureCollection {
+	zoom := 20
+	if len(zooms) != 0 {
+		zoom = zooms[0]
 	}
 
-	tile, err := config.Process(o, maptile.Tile{}.Bound(), 20)
+	tile, err := config.Process(
+		o, maptile.Tile{}.Bound(), maptile.Zoom(zoom),
+	)
 	if err != nil {
 		t.Fatalf("unable to build geojson: %v", err)
 	}

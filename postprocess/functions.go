@@ -64,7 +64,7 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"drop_names":                         compileDropNames, // only hits zoom 13 on landuse
 	"whitelist":                          nil,              // TODO remove road properites at lower zooms
 	"quantize_height":                    compileQuantizeHeight,
-	"clamp_min_zoom":                     nil, // TODO, yes
+	"clamp_min_zoom":                     compileClampMinZoom,
 	"add_collision_rank":                 nil, // TODO, yes
 }
 

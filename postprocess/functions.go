@@ -44,7 +44,7 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"merge_duplicate_stations":           nil,
 	"normalize_station_properties":       nil,
 	"rank_features":                      nil,
-	"update_parenthetical_properties":    nil,
+	"update_parenthetical_properties":    nil, // TODO
 	"keep_n_features":                    nil,
 	"drop_properties_with_prefix":        nil,
 	"drop_small_inners":                  nil,
@@ -60,12 +60,12 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"max_zoom_filter":                    nil, // Natural Earth layers, drop if out of range
 	"min_zoom_filter":                    nil,
 	"update_min_zoom":                    nil,              // TODO
-	"remap":                              nil,              // TODO
+	"remap":                              nil,              // TODO landuse, limit different kinds, zooms 0-13
 	"drop_names":                         compileDropNames, // only hits zoom 13 on landuse
-	"whitelist":                          nil,              // remove road properites at lower zooms
+	"whitelist":                          nil,              // TODO remove road properites at lower zooms
 	"quantize_height":                    compileQuantizeHeight,
-	"clamp_min_zoom":                     nil, // TODO
-	"add_collision_rank":                 nil, // TODO
+	"clamp_min_zoom":                     nil, // TODO, yes
+	"add_collision_rank":                 nil, // TODO, yes
 }
 
 var (

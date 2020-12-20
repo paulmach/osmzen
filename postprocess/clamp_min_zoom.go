@@ -79,7 +79,7 @@ func compileClampMinZoom(ctx *CompileContext, c *Config) (Function, error) {
 
 	clamp, ok := c.Params["clamp"].(map[interface{}]interface{})
 	if !ok {
-		return nil, errors.New("clamp_min_zoom: is required")
+		return nil, errors.New("clamp_min_zoom: clamp is required")
 	}
 
 	for k, v := range clamp {

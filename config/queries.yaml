@@ -1175,6 +1175,8 @@ post_process:
         (kind in ('major_road', 'highway') and zoom < 11) or
         (kind == 'path' and zoom < 12)
       # map down to these three values (plus implicit missing / None value)
+      where: # this library really only supports 13+
+        kind: minor_road
       whitelist:
         - paved
         - compacted

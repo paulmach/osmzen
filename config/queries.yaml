@@ -362,6 +362,8 @@ post_process:
       # don't want to apply this to linear features such as dams?
       where: >-
         geom_type in ('Polygon', 'MultiPolygon')
+      where:
+        geom_type: ['Polygon', 'MultiPolygon']
       # note that we don't need to remap things to themselves, e.g:
       # kind=desert stays as-is.
       remap:

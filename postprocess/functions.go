@@ -58,7 +58,7 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"max_zoom_filter":                    nil, // Natural Earth layers, drop if out of range
 	"min_zoom_filter":                    nil,
 	"update_min_zoom":                    nil,              // TODO
-	"remap":                              nil,              // TODO landuse, limit different kinds, zooms 0-13
+	"remap":                              compileRemap,     // only hits zoom 13 on landue
 	"drop_names":                         compileDropNames, // only hits zoom 13 on landuse
 	"whitelist":                          compileWhitelist,
 	"quantize_height":                    compileQuantizeHeight,

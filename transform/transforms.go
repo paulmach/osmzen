@@ -198,9 +198,10 @@ func placePopulation(ctx *filter.Context, feature *geojson.Feature) {
 }
 
 func populationRank(ctx *filter.Context, feature *geojson.Feature) {
-	population := feature.Properties.MustString("population", "")
-	pop, ok := util.ToFloat64(population)
+	population, ok := feature.Properties["population"].(float64)
 	if !ok {
+		// place_population_int converts population tags from string->int
+		// if it's not a valid number, just remove it.
 		delete(feature.Properties, "population")
 		return
 	}
@@ -226,7 +227,7 @@ func populationRank(ctx *filter.Context, feature *geojson.Feature) {
 		0,
 	}
 	for i, b := range breaks {
-		if pop > b {
+		if population > b {
 			feature.Properties["population_rank"] = len(breaks) - i
 			return
 		}

@@ -7,6 +7,7 @@ import (
 
 	"github.com/paulmach/osmzen/filter"
 	"github.com/paulmach/osmzen/matcher"
+	"github.com/paulmach/osmzen/ranker"
 
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/clip/smartclip"
@@ -63,7 +64,7 @@ var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	"whitelist":                          compileWhitelist,
 	"quantize_height":                    compileQuantizeHeight,
 	"clamp_min_zoom":                     compileClampMinZoom,
-	"add_collision_rank":                 nil, // TODO, yes
+	"add_collision_rank":                 compileAddCollisionRank,
 }
 
 var (
@@ -203,6 +204,67 @@ func compileCSVMatchProperties(ctx *CompileContext, c *Config) (Function, error)
 	return &csvMatchProperties{
 		SourceLayer: c.Params["source_layer"].(string),
 		Matcher:     m,
+	}, nil
+}
+
+type addCollisionRank struct {
+	Ranker *ranker.Ranker
+}
+
+func (f *addCollisionRank) Eval(ctx *Context, layers map[string]*geojson.FeatureCollection) {
+	for name, layer := range layers {
+		for _, feature := range layer.Features {
+
+			// hard coded version of the where clause in queries.yaml
+			add := false
+			if name == "pois" || hasName(feature) {
+				add = true
+			} else if _, ok := feature.Properties["ref"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["bicycle_shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["bus_shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["walking_shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["bicycle_shield_text"]; ok {
+				add = true
+			}
+
+			if add {
+				rank := f.Ranker.Rank(name, feature.Properties)
+				feature.Properties["collision_rank"] = rank
+			}
+		}
+	}
+}
+
+func compileAddCollisionRank(ctx *CompileContext, c *Config) (Function, error) {
+	data, err := ctx.Asset(c.Resources.Ranker.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := ranker.Load(data)
+	if err != nil {
+		return nil, err
+	}
+
+	where := "layer_name == 'pois' or " +
+		"_has_name or " +
+		"ref is not None or " +
+		"shield_text is not None or " +
+		"bicycle_shield_text is not None or " +
+		"bus_shield_text is not None or " +
+		"walking_shield_text is not None"
+	if where != c.Params["where"] {
+		return nil, errors.Errorf("add_collision_rank: where has changed, it's hard coded")
+	}
+
+	return &addCollisionRank{
+		Ranker: r,
 	}, nil
 }
 
@@ -579,7 +641,7 @@ func keyIsName(key string) bool {
 	}
 
 	// then any of the alternative forms of name
-	tagTameAlternates := []string{
+	tagNameAlternates := []string{
 		"int_name",
 		"loc_name",
 		"nat_name",
@@ -592,8 +654,18 @@ func keyIsName(key string) bool {
 		"name:short",
 	}
 
-	for _, alt := range tagTameAlternates {
+	for _, alt := range tagNameAlternates {
 		if strings.HasPrefix(key, alt) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasName(feature *geojson.Feature) bool {
+	for k := range feature.Properties {
+		if keyIsName(k) {
 			return true
 		}
 	}

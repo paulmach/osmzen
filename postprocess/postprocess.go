@@ -41,6 +41,11 @@ type Config struct {
 			InitFunc string `yaml:"init_fn"`
 			Path     string `yaml:"path"`
 		} `yaml:"matcher"`
+		Ranker struct {
+			Type     string `yaml:"type"`
+			InitFunc string `yaml:"init_fn"`
+			Path     string `yaml:"path"`
+		} `yaml:"ranker"`
 	} `yaml:"resources"`
 	Params map[interface{}]interface{} `yaml:"params"`
 }

@@ -1,4 +1,4 @@
-osmzen [![CI](https://github.com/paulmach/osmzen/workflows/CI/badge.svg)](https://github.com/paulmach/osmzen/actions?query=workflow%3ACI+event%3Apush) [![Go Report Card](https://goreportcard.com/badge/github.com/paulmach/osmzen)](https://goreportcard.com/report/github.com/paulmach/osmzen) [![Godoc Reference](https://godoc.org/github.com/paulmach/osmzen?status.svg)](https://godoc.org/github.com/paulmach/osmzen)
+osmzen [![CI](https://github.com/paulmach/osmzen/workflows/CI/badge.svg)](https://github.com/paulmach/osmzen/actions?query=workflow%3ACI+event%3Apush) [![Go Report Card](https://goreportcard.com/badge/github.com/paulmach/osmzen)](https://goreportcard.com/report/github.com/paulmach/osmzen) [![Go Reference](https://pkg.go.dev/badge/github.com/paulmach/osmzen.svg)](https://pkg.go.dev/github.com/paulmach/osmzen)
 ======
 
 This is a port of [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) developed by
@@ -34,10 +34,8 @@ The goal is for there to be no functional differences for zooms 14+. The YAML de
 unchanged, there a just a few minor changes to the post processor filtering in `queries.yaml`. See
 the [github diff](https://github.com/tilezen/vector-datasource/compare/master...paulmach:master).
 
-The port is based off of [v1.5.0ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.5.0)
-version of the vector-datasource. The [fork](https://github.com/paulmach/vector-datasource) or the
-[github diff](https://github.com/paulmach/vector-datasource/compare/master...tilezen:master) between
-it and upstream/master are kept at the intended "reference".
+The port is based off of [v1.8.0ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.8.0)
+version of the vector-datasource.
 
 Usage
 -----

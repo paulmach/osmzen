@@ -26,15 +26,32 @@
     <div id="map"></div>
 
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/tangram@0.21.0/dist/tangram.min.js"></script>
+    <script src="https://unpkg.com/tangram@0.21.1/dist/tangram.min.js"></script>
+    <script src="https://unpkg.com/lodash@4.17.20/lodash.js"></script>
+
     <script>
-      var map = L.map('map', {
+      let map = L.map('map', {
         minZoom: 15,
         maxZoom: 18,
-        attribution: '<a href="https://github.com/tangrams" target="_blank">Tangram</a> | <a href="http://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
       });
 
-      var tangramLayer = Tangram.leafletLayer({
+      if (window.location.hash) {
+        let parts = window.location.hash.substring(1).split('/');
+        map.setView([parts[2], parts[1]], parts[0]);
+      } else {
+        map.setView([37.82502, -122.25466], 17);
+      }
+
+      map.on('move', _.throttle(() => {
+        window.location.hash = [
+          map.getZoom().toFixed(2),
+          map.getCenter().lng.toFixed(4),
+          map.getCenter().lat.toFixed(4)
+        ].join('/')
+      }, 500))
+
+      let tangramLayer = Tangram.leafletLayer({
+        attribution: '<a href="https://github.com/tangrams" target="_blank">Tangram</a> | <a href="http://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>',
         scene: {
           import: [
             'https://tangrams.github.io/bubble-wrap/bubble-wrap-style.yaml',
@@ -46,7 +63,7 @@
               url: window.location.origin + '/tiles/{z}/{x}/{y}.json',
               tile_size: 256,
               min_zoom: 15,
-              max_zoom: 16,
+              max_zoom: 18,
               min_display_zoom: 15,
               max_display_zoom: 18
             }
@@ -55,7 +72,6 @@
       });
 
       tangramLayer.addTo(map);
-      map.setView([37.82502, -122.25466], 17);
     </script>
   </body>
 </html>

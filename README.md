@@ -31,8 +31,7 @@ high level sanity checks.
 #### Changes from the original tilezen/vector-datasource
 
 The goal is for there to be no functional differences for zooms 14+. The YAML definition files are
-unchanged, there a just a few minor changes to the post processor filtering in `queries.yaml`. See
-the [github diff](https://github.com/tilezen/vector-datasource/compare/master...paulmach:master).
+unchanged, there a just a few minor changes to the post processor filtering in `queries.yaml`.
 
 The port is based off of [v1.8.0ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.8.0)
 version of the vector-datasource.

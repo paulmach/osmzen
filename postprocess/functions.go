@@ -7,6 +7,7 @@ import (
 
 	"github.com/paulmach/osmzen/filter"
 	"github.com/paulmach/osmzen/matcher"
+	"github.com/paulmach/osmzen/ranker"
 
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/clip/smartclip"
@@ -21,39 +22,49 @@ import (
 var functions = map[string]func(*CompileContext, *Config) (Function, error){
 	// functions defined in tilezen/vector-datasource.
 	// nil values have not been implemented.
-	"numeric_min_filter":              compileNumericMinFilter,
-	"road_networks":                   compileRoadNetworks,
-	"build_fence":                     nil,
-	"drop_properties":                 nil,
-	"csv_match_properties":            compileCSVMatchProperties,
-	"exterior_boundaries":             nil,
-	"drop_features_mz_min_pixels":     nil,
-	"overlap":                         nil,
-	"admin_boundaries":                nil,
-	"handle_label_placement":          compileHandleLabelPlacement,
-	"remove_duplicate_features":       compileRemoveDuplicateFeatures,
-	"drop_features_where":             compileDropFeaturesWhere,
-	"merge_line_features":             nil,
-	"merge_building_features":         nil,
-	"merge_polygon_features":          nil,
-	"generate_address_points":         nil,
-	"merge_duplicate_stations":        nil,
-	"normalize_station_properties":    nil,
-	"rank_features":                   nil,
-	"update_parenthetical_properties": nil,
-	"keep_n_features":                 nil,
-	"drop_properties_with_prefix":     nil,
-	"drop_small_inners":               nil,
-	"simplify_and_clip":               nil,
-	"intercut":                        nil,
-	"simplify_layer":                  nil,
-	"backfill_from_other_layer":       compileBackfillFromOtherLayers,
-	"buildings_unify":                 nil,
-	"palettize_colours":               nil,
-	"point_in_country_logic":          nil,
-	"tags_set_ne_min_max_zoom":        nil,
-	"drop_layer":                      nil,
-	"max_zoom_filter":                 nil,
+	"numeric_min_filter":                 compileNumericMinFilter,
+	"road_networks":                      compileRoadNetworks,
+	"build_fence":                        nil,
+	"drop_properties":                    nil, // TODO
+	"csv_match_properties":               compileCSVMatchProperties,
+	"exterior_boundaries":                nil,
+	"drop_features_mz_min_pixels":        nil,
+	"overlap":                            nil, // look into
+	"admin_boundaries":                   nil,
+	"apply_disputed_boundary_viewpoints": nil,
+	"drop_names_on_short_boundaries":     nil,
+	"handle_label_placement":             compileHandleLabelPlacement,
+	"remove_duplicate_features":          compileRemoveDuplicateFeatures,
+	"drop_features_where":                compileDropFeaturesWhere,
+	"merge_line_features":                nil,
+	"merge_building_features":            nil,
+	"merge_polygon_features":             nil,
+	"generate_address_points":            nil,
+	"merge_duplicate_stations":           nil,
+	"normalize_station_properties":       nil,
+	"rank_features":                      nil,
+	"update_parenthetical_properties":    compileUpdateParentheticalProperties,
+	"keep_n_features":                    nil,
+	"drop_properties_with_prefix":        nil,
+	"drop_small_inners":                  nil,
+	"simplify_and_clip":                  nil,
+	"intercut":                           nil,
+	"simplify_layer":                     nil,
+	"backfill_from_other_layer":          compileBackfillFromOtherLayers,
+	"buildings_unify":                    nil,
+	"palettize_colours":                  nil,
+	"point_in_country_logic":             nil,
+	"tags_set_ne_min_max_zoom":           nil,
+	"drop_layer":                         nil, // drops admin_areas layer, which we completely ignore
+	"max_zoom_filter":                    nil, // Natural Earth layers, drop if out of range
+	"min_zoom_filter":                    nil,
+	"update_min_zoom":                    nil,              // TODO
+	"remap":                              compileRemap,     // only hits zoom 13 on landue
+	"drop_names":                         compileDropNames, // only hits zoom 13 on landuse
+	"whitelist":                          compileWhitelist,
+	"quantize_height":                    compileQuantizeHeight,
+	"clamp_min_zoom":                     compileClampMinZoom,
+	"add_collision_rank":                 compileAddCollisionRank,
 }
 
 var (
@@ -193,6 +204,67 @@ func compileCSVMatchProperties(ctx *CompileContext, c *Config) (Function, error)
 	return &csvMatchProperties{
 		SourceLayer: c.Params["source_layer"].(string),
 		Matcher:     m,
+	}, nil
+}
+
+type addCollisionRank struct {
+	Ranker *ranker.Ranker
+}
+
+func (f *addCollisionRank) Eval(ctx *Context, layers map[string]*geojson.FeatureCollection) {
+	for name, layer := range layers {
+		for _, feature := range layer.Features {
+
+			// hard coded version of the where clause in queries.yaml
+			add := false
+			if name == "pois" || hasName(feature) {
+				add = true
+			} else if _, ok := feature.Properties["ref"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["bicycle_shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["bus_shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["walking_shield_text"]; ok {
+				add = true
+			} else if _, ok := feature.Properties["bicycle_shield_text"]; ok {
+				add = true
+			}
+
+			if add {
+				rank := f.Ranker.Rank(name, feature.Properties)
+				feature.Properties["collision_rank"] = rank
+			}
+		}
+	}
+}
+
+func compileAddCollisionRank(ctx *CompileContext, c *Config) (Function, error) {
+	data, err := ctx.Asset(c.Resources.Ranker.Path)
+	if err != nil {
+		return nil, err
+	}
+
+	r, err := ranker.Load(data)
+	if err != nil {
+		return nil, err
+	}
+
+	where := "layer_name == 'pois' or " +
+		"_has_name or " +
+		"ref is not None or " +
+		"shield_text is not None or " +
+		"bicycle_shield_text is not None or " +
+		"bus_shield_text is not None or " +
+		"walking_shield_text is not None"
+	if where != c.Params["where"] {
+		return nil, errors.Errorf("add_collision_rank: where has changed, it's hard coded")
+	}
+
+	return &addCollisionRank{
+		Ranker: r,
 	}, nil
 }
 
@@ -510,12 +582,12 @@ func (f *dropFeaturesWhere) Eval(ctx *Context, layers map[string]*geojson.Featur
 		return
 	}
 
-	at := 0
 	layer := layers[f.Layer]
 	if layer == nil {
 		return
 	}
 
+	at := 0
 	for _, feature := range layer.Features {
 		ctx.fctx = filter.NewContextFromProperties(ctx.fctx, feature.Properties)
 		if f.Condition.Eval(ctx.fctx) {
@@ -533,7 +605,15 @@ func compileDropFeaturesWhere(ctx *CompileContext, c *Config) (Function, error) 
 	f := &dropFeaturesWhere{}
 
 	f.Layer = c.Params["source_layer"].(string)
-	f.StartZoom = float64(c.Params["start_zoom"].(int))
+	zs, ok := c.Params["start_zoom"]
+	if ok {
+		z, ok := zs.(int)
+		if !ok {
+			return nil, errors.New("drop_features_where: start_zoom must be an integer")
+		}
+
+		f.StartZoom = float64(z)
+	}
 
 	cond, err := filter.CompileCondition(c.Params["where"])
 	if err != nil {
@@ -541,6 +621,195 @@ func compileDropFeaturesWhere(ctx *CompileContext, c *Config) (Function, error) 
 	}
 
 	f.Condition = cond
+	return f, nil
+}
+
+// keyIsName returns true if this key looks like a name.
+// This isn't as simple as testing if key == 'name', as there are alternative
+// name-like tags such as 'official_name', translated names such as 'name:en',
+// and left/right names for boundaries. This function aims to match all of
+// those variants.
+func keyIsName(key string) bool {
+	// simplest and most common case first
+	if key == "name" {
+		return true
+	}
+
+	// translations next
+	if strings.HasPrefix(key, "name:") {
+		return true
+	}
+
+	// then any of the alternative forms of name
+	tagNameAlternates := []string{
+		"int_name",
+		"loc_name",
+		"nat_name",
+		"official_name",
+		"old_name",
+		"reg_name",
+		"short_name",
+		"name_left",
+		"name_right",
+		"name:short",
+	}
+
+	for _, alt := range tagNameAlternates {
+		if strings.HasPrefix(key, alt) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func hasName(feature *geojson.Feature) bool {
+	for k := range feature.Properties {
+		if keyIsName(k) {
+			return true
+		}
+	}
+
+	return false
+}
+
+type dropNames struct {
+	Layer     string
+	StartZoom float64
+	EndZoom   float64
+}
+
+func (f *dropNames) Eval(ctx *Context, layers map[string]*geojson.FeatureCollection) {
+	if ctx.Zoom < f.StartZoom || f.EndZoom < ctx.Zoom {
+		return
+	}
+
+	layer := layers[f.Layer]
+	if layer == nil {
+		return
+	}
+
+	for _, feature := range layer.Features {
+		for k := range feature.Properties {
+			if keyIsName(k) {
+				delete(feature.Properties, k)
+			}
+		}
+	}
+}
+
+func compileDropNames(ctx *CompileContext, c *Config) (Function, error) {
+	f := &dropNames{EndZoom: 50}
+
+	f.Layer = c.Params["source_layer"].(string)
+	zs, ok := c.Params["start_zoom"]
+	if ok {
+		z, ok := zs.(int)
+		if !ok {
+			return nil, errors.New("drop_nams: start_zoom must be an integer")
+		}
+
+		f.StartZoom = float64(z)
+	}
+
+	ze, ok := c.Params["end_zoom"]
+	if ok {
+		z, ok := ze.(int)
+		if !ok {
+			return nil, errors.New("drop_names: end_zoom must be an integer")
+		}
+
+		f.EndZoom = float64(z)
+	}
+
+	return f, nil
+}
+
+// If a feature's name ends with a set of values in parens, update
+// its kind and increase the min_zoom appropriately.
+type updateParentheticalProperties struct {
+	Layer         string
+	TargetMinZoom float64
+	DropBelowZoom float64
+	Values        []string
+	PValues       []string
+}
+
+func (f *updateParentheticalProperties) Eval(ctx *Context, layers map[string]*geojson.FeatureCollection) {
+	layer := layers[f.Layer]
+	if layer == nil {
+		return
+	}
+
+	at := 0
+features:
+	for _, feature := range layer.Features {
+		// check every property to see if it ends with the (*) type values
+
+		for _, prop := range feature.Properties {
+			for i, val := range f.PValues {
+				if p, ok := prop.(string); ok && strings.HasSuffix(p, val) {
+					feature.Properties["kind"] = f.Values[i]
+					feature.Properties["min_zoom"] = f.TargetMinZoom
+					if ctx.Zoom < f.DropBelowZoom {
+						continue features
+					}
+				}
+			}
+		}
+
+		layer.Features[at] = feature
+		at++
+	}
+
+	layer.Features = layer.Features[:at]
+}
+
+func compileUpdateParentheticalProperties(ctx *CompileContext, c *Config) (Function, error) {
+	f := &updateParentheticalProperties{}
+
+	f.Layer = c.Params["source_layer"].(string)
+
+	if _, ok := c.Params["start_zoom"]; ok {
+		return nil, errors.New("update_parenthetical_properties: start_zoom not supported")
+	}
+
+	if _, ok := c.Params["end_zoom"]; ok {
+		return nil, errors.New("update_parenthetical_properties: start_zoom not supported")
+	}
+
+	tz, ok := c.Params["target_min_zoom"]
+	if ok {
+		z, ok := tz.(int)
+		if !ok {
+			return nil, errors.New("update_parenthetical_properties: target zoom must be an integer")
+		}
+
+		f.TargetMinZoom = float64(z)
+	}
+
+	dz, ok := c.Params["drop_below_zoom"]
+	if ok {
+		z, ok := dz.(int)
+		if !ok {
+			return nil, errors.New("update_parenthetical_properties: drop_below_zoom must be an integer")
+		}
+
+		f.DropBelowZoom = float64(z)
+	} else {
+		return nil, errors.New("update_parenthetical_properties: drop_below_zoom is required")
+	}
+
+	v, ok := c.Params["values"]
+	if ok {
+		f.Values = parseStrings(v)
+		for _, v := range f.Values {
+			f.PValues = append(f.PValues, "("+v+")")
+		}
+	} else {
+		return nil, errors.New("update_parenthetical_properties: values are required")
+	}
+
 	return f, nil
 }
 

@@ -10,6 +10,8 @@ import (
 // A Filter is a set of matchers and the resulting tag transformation
 // to add to the element properties if the matcher matches.
 type Filter struct {
+	Skip bool
+
 	RawFilter  interface{}            `yaml:"filter"`
 	RawOutput  map[string]interface{} `yaml:"output"`
 	RawMinZoom interface{}            `yaml:"min_zoom"`
@@ -32,7 +34,8 @@ type OutputExpression struct {
 // and conditions. This should be called once before matching.
 // Returns a *CompileError with details about what exactly went wrong.
 func (f *Filter) Compile() error {
-	if f.Table != "" && f.Table != "osm" {
+	if !applicableFilter(f) {
+		f.Skip = true
 		return nil
 	}
 
@@ -82,10 +85,36 @@ func (f *Filter) Compile() error {
 	return nil
 }
 
+// applicableFilter will filter the filters to determine if these filters have
+// meaning in the osmzen context. Right it will skip filters that are not
+// targeted at OSM data, like natural earth data or shape files.
+func applicableFilter(f *Filter) bool {
+	if f.Table != "" && f.Table != "osm" {
+		return false
+	}
+
+	m, ok := f.RawFilter.(map[interface{}]interface{})
+	if !ok {
+		return true
+	}
+
+	if m["meta.source"] == nil {
+		return true
+	}
+
+	metaSource, ok := m["meta.source"].(string)
+	if !ok {
+		return false
+	}
+
+	return metaSource != "ne" && metaSource != "shp"
+
+}
+
 // Match will return true/false if the ctx/element matches the feature.
 // Must call Compile() first to initialize the filters.
 func (f *Filter) Match(ctx *Context) bool {
-	if f.Table != "" && f.Table != "osm" {
+	if f.Skip {
 		return false
 	}
 

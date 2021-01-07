@@ -1,6 +1,7 @@
 package util
 
 import (
+	"fmt"
 	"math"
 	"regexp"
 	"strconv"
@@ -117,4 +118,35 @@ func ReverseLineDirection(feature *geojson.Feature) bool {
 	}
 
 	return false
+}
+
+// OneDecimalPoint with convert the value to one decimal point if needed.
+func OneDecimalPoint(val float64) string {
+	s := fmt.Sprintf("%.1f", val)
+	return strings.TrimRight(strings.TrimRight(s, "0"), ".")
+}
+
+var cardinals = map[string]float64{
+	"north": 0, "n": 0, "nne": 22, "ne": 45, "ene": 67,
+	"east": 90, "e": 90, "ese": 112, "se": 135, "sse": 157,
+	"south": 180, "s": 180, "ssw": 202, "sw": 225, "wsw": 247,
+	"west": 270, "w": 270, "wnw": 292, "nw": 315, "nnw": 337,
+}
+
+// ToDegrees takes number of directions (e.g. N, NNW) and converts to degrees.
+func ToDegrees(x string) (float64, bool) {
+	x = strings.ToLower(strings.TrimSpace(x))
+	if x == "" {
+		return 0, false
+	}
+
+	val, ok := ToFloat64(x)
+	if ok {
+		// always return within range of 0 to 360
+		return float64(int(val) % 360), true
+	}
+
+	// protect against bad cardinal notations
+	c, ok := cardinals[x]
+	return c, ok
 }

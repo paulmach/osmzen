@@ -14,7 +14,7 @@ import (
 )
 
 // to copy the yaml data into the binary for easier loading.
-//go:generate go-bindata -pkg embeddedconfig -o embeddedconfig/config.go -prefix=config config/queries.yaml config/yaml/ config/spreadsheets/scale_rank/ config/spreadsheets/sort_rank/
+//go:generate go-bindata -pkg embeddedconfig -o embeddedconfig/config.go -prefix=config config/queries.yaml config/yaml/ config/spreadsheets/ config/spreadsheets/scale_rank/ config/spreadsheets/sort_rank/
 //go:generate gofmt -w embeddedconfig/config.go
 
 // Config is the full queries.yaml config file for this library.

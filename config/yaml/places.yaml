@@ -1,17 +1,28 @@
 global:
+  - &ne_country_capital [Admin-0 capital, Admin-0 capital alt, Admin-0 region capital]
+  - &ne_region_capital [Admin-1 capital, Admin-1 region capital]
+
   - &output_properties
     name: {col: name}
     source: {col: source}
     admin_level: {col: admin_level}
     population: {col: population}
     country_capital:
-      call:
-        func: util.tag_str_to_bool
-        args: [ { col: capital } ]
+      case:
+        - when: {featurecla: *ne_country_capital}
+          then: true
+        - else:
+            call:
+              func: util.tag_str_to_bool
+              args: [ { col: capital } ]
     region_capital:
-      call:
-        func: util.tag_str_to_bool
-        args: [ { col: state_capital } ]
+      case:
+        - when: {featurecla: *ne_region_capital}
+          then: true
+        - else:
+            call:
+              func: util.tag_str_to_bool
+              args: [ { col: state_capital } ]
     mz_n_photos: {col: mz_n_photos}
     area:
       call:
@@ -23,6 +34,7 @@ global:
       call:
         func: util.true_or_none
         args: [ { col: is_landuse_aoi } ]
+    wikidata_id: {col: wikidata}
 
   - &ne_places_min_zoom
     lookup:
@@ -38,8 +50,47 @@ global:
         - [ 9, 9 ]
       default: 10
 
+  - &alternate_fclass
+    fclass_iso: { col: fclass_iso }
+    fclass_ar: { col: fclass_ar }
+    fclass_bd: { col: fclass_bd }
+    fclass_br: { col: fclass_br }
+    fclass_cn: { col: fclass_cn }
+    fclass_de: { col: fclass_de }
+    fclass_eg: { col: fclass_eg }
+    fclass_es: { col: fclass_es }
+    fclass_fr: { col: fclass_fr }
+    fclass_gb: { col: fclass_gb }
+    fclass_gr: { col: fclass_gr }
+    fclass_id: { col: fclass_id }
+    fclass_il: { col: fclass_il }
+    fclass_in: { col: fclass_in }
+    fclass_it: { col: fclass_it }
+    fclass_jp: { col: fclass_jp }
+    fclass_ko: { col: fclass_ko }
+    fclass_ma: { col: fclass_ma }
+    fclass_nl: { col: fclass_nl }
+    fclass_np: { col: fclass_np }
+    fclass_pk: { col: fclass_pk }
+    fclass_pl: { col: fclass_pl }
+    fclass_ps: { col: fclass_ps }
+    fclass_pt: { col: fclass_pt }
+    fclass_ru: { col: fclass_ru }
+    fclass_sa: { col: fclass_sa }
+    fclass_se: { col: fclass_se }
+    fclass_tr: { col: fclass_tr }
+    fclass_tw: { col: fclass_tw }
+    fclass_us: { col: fclass_us }
+    fclass_vn: { col: fclass_vn }
+
 filters:
-  - filter: {meta.source: wof}
+  - filter:
+      meta.source: wof
+      placetype:
+        - neighbourhood
+        - microhood
+        - macrohood
+        - borough
     min_zoom: {col: min_zoom}
     output:
       <<: *output_properties
@@ -50,6 +101,9 @@ filters:
     # note: min_zoom needs to be smaller than any min_label in
     # ne_10m_admin_0_countries to make sure we're not dropping any by not being
     # included in the PostgreSQL index.
+    #
+    # note: also, we knock this down to 6 during post-processing for any country
+    # which doesn't match an NE curated one.
     min_zoom: 1
     output:
       <<: *output_properties
@@ -61,6 +115,9 @@ filters:
     # note: min_zoom needs to be smaller than any min_label in
     # ne_10m_admin_1_states_provinces to make sure we're not dropping any by
     # not being included in the PostgreSQL index.
+    #
+    # note: also, we knock this down to 6 during post-processing for any state
+    # which doesn't match an NE curated one.
     min_zoom: 3
     output:
       <<: *output_properties
@@ -73,6 +130,9 @@ filters:
     # note: min_zoom needs to be smaller than any min_label in
     # ne_10m_admin_1_states_provinces to make sure we're not dropping any by
     # not being included in the PostgreSQL index.
+    #
+    # note: also, we knock this down to 6 during post-processing for any province
+    # which doesn't match an NE curated one.
     min_zoom: 3
     output:
       <<: *output_properties
@@ -85,6 +145,7 @@ filters:
     min_zoom: 8
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: {col: place}
     table: osm
@@ -92,6 +153,7 @@ filters:
     min_zoom: 9
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: {col: place}
     table: osm
@@ -99,6 +161,7 @@ filters:
     min_zoom: 11
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: village
     table: osm
@@ -106,6 +169,7 @@ filters:
     min_zoom: 12
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: village
     table: osm
@@ -113,6 +177,7 @@ filters:
     min_zoom: 12
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: hamlet
     table: osm
@@ -120,6 +185,7 @@ filters:
     min_zoom: 13
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: {col: place}
     table: osm
@@ -127,6 +193,7 @@ filters:
     min_zoom: 13
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: isolated_dwelling
     table: osm
@@ -134,25 +201,28 @@ filters:
     min_zoom: 13
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       kind_detail: farm
     table: osm
 
   - filter:
       scalerank: true
-      featurecla: [Admin-0 region capital, Admin-0 capital alt, Admin-0 capital]
+      featurecla: *ne_country_capital
     min_zoom: *ne_places_min_zoom
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       country_capital: true
     table: ne
   - filter:
       scalerank: true
-      featurecla: [Admin-1 capital, Admin-1 region capital]
+      featurecla: *ne_region_capital
     min_zoom: *ne_places_min_zoom
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
       region_capital: true
     table: ne
@@ -160,6 +230,7 @@ filters:
     min_zoom: *ne_places_min_zoom
     output:
       <<: *output_properties
+      <<: *alternate_fclass
       kind: locality
     table: ne
 

@@ -26,6 +26,9 @@ func init() {
 		// "mz_get_rel_networks":                compileGetRelNetworks,
 		"mz_to_float_meters":                 compileToFloatMeters,
 		"mz_get_min_zoom_highway_level_gate": compileGetMinZoomHighwayLevelGate,
+		"tz_estimate_parking_capacity":       compileEstimateParkingCapacity,
+		"tz_looks_like_service_area":         compileLooksLikeServiceArea,
+		"tz_looks_like_rest_area":            compileLooksLikeRestArea,
 		"util.safe_int":                      compileSafeInt,
 		"util.tag_str_to_bool":               compileTagStrToBool,
 		"util.true_or_none":                  compileTrueOrNone,
@@ -379,6 +382,102 @@ func compileCalculatePathMajorRoute(args []Expression) (Expression, error) {
 	return calculatePathMajorRoute{}, nil
 }
 
+type estimateParkingCapacity struct{}
+
+func (f estimateParkingCapacity) Eval(ctx *Context) interface{} {
+	return f.EvalNum(ctx)
+}
+
+func (f estimateParkingCapacity) EvalNum(ctx *Context) float64 {
+	capacity, ok := util.ToFloat64(ctx.Tags["capacity"])
+	if ok {
+		return capacity
+	}
+
+	// sometimes people don't put integers in the capacity, which is kind of
+	// annoying. it means we just have to fall back to estimating.
+
+	// estimate capacity based on way area fitting. looks like roughly 46 square
+	// mercator meters per space?
+	spacesPerLevel := ctx.Area() / 46.0
+
+	levels, ok := util.ToFloat64(ctx.Tags["levels"])
+	if !ok {
+		if ctx.Tags["parking"] == "multi-storey" {
+			// at least 2, but let's be conservative.
+			levels = 2.0
+		} else {
+			// mainly surface, but also other types such as "underground"
+			levels = 1.0
+		}
+	}
+
+	capacity = spacesPerLevel * levels
+	if capacity <= 0 {
+		return 0.0
+	}
+
+	return capacity
+}
+
+func compileEstimateParkingCapacity(args []Expression) (Expression, error) {
+	return estimateParkingCapacity{}, nil
+}
+
+type looksLikeServiceArea struct{}
+
+func (f looksLikeServiceArea) Eval(ctx *Context) interface{} {
+	return f.EvalNum(ctx)
+}
+
+func (f looksLikeServiceArea) EvalNum(ctx *Context) float64 {
+	minZoom := 17.0
+
+	name, ok := ctx.Tags["name"]
+	if !ok {
+		return minZoom
+	}
+
+	name = strings.ToLower(name)
+	if strings.HasSuffix(name, "service area") ||
+		strings.HasSuffix(name, "services") ||
+		strings.HasSuffix(name, "travel plaza") {
+		return 13.0
+	}
+
+	return minZoom
+}
+
+func compileLooksLikeServiceArea(args []Expression) (Expression, error) {
+	return looksLikeServiceArea{}, nil
+}
+
+type looksLikeRestArea struct{}
+
+func (f looksLikeRestArea) Eval(ctx *Context) interface{} {
+	return f.EvalNum(ctx)
+}
+
+func (f looksLikeRestArea) EvalNum(ctx *Context) float64 {
+	minZoom := 17.0
+
+	name, ok := ctx.Tags["name"]
+	if !ok {
+		return minZoom
+	}
+
+	name = strings.ToLower(name)
+	if strings.HasSuffix(name, "rest area") {
+		return 13.0
+	}
+
+	return minZoom
+}
+
+func compileLooksLikeRestArea(args []Expression) (Expression, error) {
+	return looksLikeRestArea{}, nil
+}
+
 type safeInt struct {
 	Arg Expression
 }
@@ -506,7 +605,6 @@ func compileCalculateIsBuildingOrPart(args []Expression) (Expression, error) {
 // https://github.com/tilezen/vector-datasource/blob/617f2011d262b6f2171e988fd60931890663cf7a/data/functions.sql#L504-L526
 func buildingHeight(ctx *Context) float64 {
 	height := ctx.Tags["height"]
-	levels := ctx.Tags["building:levels"]
 
 	// if height is present, and can be parsed as a
 	// float, then we can filter right here.
@@ -519,6 +617,8 @@ func buildingHeight(ctx *Context) float64 {
 		// what it could be, and we must assume it could be very large.
 		return 1.0e10
 	}
+
+	levels := ctx.Tags["building:levels"]
 
 	// looks like we assume each level is 3m, plus 2 overall.
 	if levels != "" {

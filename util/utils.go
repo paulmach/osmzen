@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	feetPattern   = regexp.MustCompile(`([+-]?[0-9.]+)\'(?: *([+-]?[0-9.]+)")?`)
+	feetPattern   = regexp.MustCompile(`([+-]?[0-9.]+)'(?: *([+-]?[0-9.]+)")?`)
 	numberPattern = regexp.MustCompile(`([+-]?[0-9.]+)`)
 	unitPattern   = regexp.MustCompile(`([+-]?[0-9.]+) *(mi|km|m|nmi|ft)`)
 )

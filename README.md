@@ -79,7 +79,7 @@ Usage
 			zoom,
 		)
 
-	The bound is necessary for clipping. Typically set to the bound of the requested tile.
+	The bound is necessary for clipping. Typically, set to the bound of the requested tile.
 
 The result is a GeoJSON feature collection with `kind`, `kind_detail` etc. properties that
 are understood by [Mapzen house styles](https://mapzen.com/products/maps/).
@@ -156,7 +156,7 @@ up front there is a nice performance boost of about 10x.
 The filters and outputs defined in the `yaml/*.yaml` files are basically a set of statements that
 act like: "if the element tags look like this, output these kind, kind_detail, etc. properties".
 
-The filters define a condition, yes/no matching, that evaluates into a boolean. During the compile
+The filters define a condition, yes/no matching, that evaluates into a boolean value. During the compile
 step these are converted into concrete types that implement the `filter.Condition` interface. The
 interface is defined as:
 
@@ -196,7 +196,7 @@ While loading the config the **transforms** are matched to functions of the form
 	func(*filter.Context, *geojson.Feature)
 
 Transforms can only change a feature, they can't remove a feature if it's "bad" for any reason, like
-too small for the zoom. Transforms also don't know about other features so they can't be used to
+too small for the zoom. Transforms also don't know about other features, so they can't be used to
 remove duplicates or merge features, like parts of the same road. However, transforms can be used to
 do things like fix one-way direction, abbreviate road names, etc.
 

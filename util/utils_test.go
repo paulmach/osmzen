@@ -16,7 +16,7 @@ func TestToFloat64(t *testing.T) {
 		{"negative", "-123", -123, true},
 		{"float", "-1.5", -1.5, true},
 		{"with spaces", "  -1.5   ", -1.5, true},
-		{"with leters", "abcd", 0, false},
+		{"with letters", "abcd", 0, false},
 	}
 
 	for _, tc := range cases {
@@ -33,7 +33,7 @@ func TestToFloat64(t *testing.T) {
 	}
 }
 
-func TestToFloat64Meteres(t *testing.T) {
+func TestToFloat64Meters(t *testing.T) {
 	cases := []struct {
 		name   string
 		num    string
@@ -44,7 +44,7 @@ func TestToFloat64Meteres(t *testing.T) {
 		{"negative", "-123", -123, true},
 		{"float", "-1.5", -1.5, true},
 		{"with spaces", "  -1.5   ", -1.5, true},
-		{"with leters", "abcd", 0, false},
+		{"with letters", "abcd", 0, false},
 
 		// imperial
 		{"foot", `1'`, 12 * metersPerInch, true},

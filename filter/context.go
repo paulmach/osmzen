@@ -70,7 +70,7 @@ func NewContext(ctx *Context, feature *geojson.Feature) *Context {
 	return ctx
 }
 
-// NewContextFromProperties will create a context using a set of properies.
+// NewContextFromProperties will create a context using a set of properties.
 // This limits the queries one can do since not all the geometry is present.
 func NewContextFromProperties(ctx *Context, props geojson.Properties) *Context {
 	if ctx == nil {
@@ -105,7 +105,7 @@ func NewContextFromProperties(ctx *Context, props geojson.Properties) *Context {
 }
 
 // Length computes the length of the element. This is used many
-// places so it's computed/cacched on the context.
+// places so it's computed/cached on the context.
 func (ctx *Context) Length() float64 {
 	if ctx.length >= 0 {
 		return ctx.length
@@ -116,7 +116,7 @@ func (ctx *Context) Length() float64 {
 }
 
 // Area computes the area of the element. This is used many
-// places so it's computed/cacched on the context.
+// places so it's computed/cached on the context.
 func (ctx *Context) Area() float64 {
 	if ctx.area >= 0 {
 		return ctx.area

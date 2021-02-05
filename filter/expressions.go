@@ -153,7 +153,7 @@ var colExpressions = map[string]Expression{
 	"mz_networks":        &getRelNetworks{},
 	"mz_is_building":     &calculateIsBuildingOrPart{},
 
-	// TODO: transit stuf I don't understand
+	// TODO: transit stuff I don't understand
 	"mz_transit_score":            &nilExpr{},
 	"mz_transit_root_relation_id": &nilExpr{},
 }

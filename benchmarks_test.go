@@ -242,9 +242,8 @@ func BenchmarkProcessGeoJSON(b *testing.B) {
 	ctx := &zenContext{
 		Zoom:  tile.Z,
 		Bound: tile.Bound(),
-		OSM:   data,
 	}
-	ctx.ComputeMembership()
+	ctx.ComputeMembership(data)
 
 	b.ReportAllocs()
 	b.ResetTimer()

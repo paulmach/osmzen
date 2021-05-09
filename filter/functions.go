@@ -130,10 +130,10 @@ func (f getMinZoomHighwayLevelGate) Eval(ctx *Context) interface{} {
 func (f getMinZoomHighwayLevelGate) EvalNum(ctx *Context) float64 {
 	zoom := 0.0
 
-	for _, w := range ctx.wayMembership() {
+	for _, tags := range ctx.wayMembership() {
 		z := 17.0
 
-		highway := w.Tags.Find("highway")
+		highway := tags.Find("highway")
 		if stringIn(highway, []string{"motorway", "trunk", "primary", "motorway_link", "trunk_link", "primary_link"}) {
 			z = 14
 		} else if stringIn(highway, []string{"secondary", "tertiary", "secondary_link", "tertiary_link"}) {
@@ -163,9 +163,9 @@ type calculateIsBusRoute struct{}
 // mz_calculate_is_bus_route
 // https://github.com/tilezen/vector-datasource/blob/d28bc2801e808e02b48023e165c8664ebe4c0486/data/functions.sql#L547-L563
 func (f calculateIsBusRoute) Eval(ctx *Context) interface{} {
-	for _, r := range ctx.relationMembership() {
-		if r.Tags.Find("type") == "route" {
-			route := r.Tags.Find("route")
+	for _, tags := range ctx.relationMembership() {
+		if tags.Find("type") == "route" {
+			route := tags.Find("route")
 			if route == "bus" || route == "trolleybus" {
 				return true
 			}
@@ -190,8 +190,8 @@ type hikingNetwork struct{}
 func (f hikingNetwork) Eval(ctx *Context) interface{} {
 	counts := [3]int{}
 
-	for _, r := range ctx.relationMembership() {
-		tm := r.Tags.Map()
+	for _, tags := range ctx.relationMembership() {
+		tm := tags.Map()
 		if !isPathMajorRouteRelation(tm) {
 			continue
 		}
@@ -233,8 +233,8 @@ func compileHikingNetwork(args []Expression) (Expression, error) {
 func cyclingNetworkHelper(ctx *Context) interface{} {
 	counts := [3]int{}
 
-	for _, r := range ctx.relationMembership() {
-		tm := r.Tags.Map()
+	for _, tags := range ctx.relationMembership() {
+		tm := tags.Map()
 		if !isPathMajorRouteRelation(tm) {
 			continue
 		}
@@ -311,10 +311,10 @@ func (f getRelNetworks) Eval(ctx *Context) interface{} {
 	}
 
 	result := make([]string, 0, len(relations))
-	for _, r := range relations {
-		route := r.Tags.Find("route")
-		network := r.Tags.Find("network")
-		ref := r.Tags.Find("ref")
+	for _, tags := range relations {
+		route := tags.Find("route")
+		network := tags.Find("network")
+		ref := tags.Find("ref")
 
 		if route != "" && (network != "" || ref != "") {
 			result = append(result, route, network, ref)
@@ -348,8 +348,8 @@ func (f calculatePathMajorRoute) Eval(ctx *Context) interface{} {
 func (f calculatePathMajorRoute) EvalNum(ctx *Context) float64 {
 	zoom := 20.0
 
-	for _, r := range ctx.relationMembership() {
-		tm := r.Tags.Map()
+	for _, tags := range ctx.relationMembership() {
+		tm := tags.Map()
 		if !isPathMajorRouteRelation(tm) {
 			continue
 		}

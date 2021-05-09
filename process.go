@@ -240,9 +240,8 @@ func (l *Layer) filterMatch(fctx *filter.Context) (*filter.Filter, error) {
 type zenContext struct {
 	Zoom               maptile.Zoom
 	Bound              orb.Bound
-	OSM                *osm.OSM
-	WayMembership      map[osm.NodeID]osm.Ways
-	RelationMembership map[osm.FeatureID]osm.Relations
+	WayMembership      map[osm.NodeID][]osm.Tags
+	RelationMembership map[osm.FeatureID][]osm.Tags
 
 	// cache the object, save the allocs.
 	fctx *filter.Context
@@ -252,15 +251,13 @@ func newZenContext(data *osm.OSM, bound orb.Bound, z maptile.Zoom) *zenContext {
 	ctx := &zenContext{
 		Zoom:  z,
 		Bound: bound,
-		OSM:   data,
 	}
 
-	ctx.ComputeMembership()
+	ctx.ComputeMembership(data)
 
 	// This is a cached, and reused version of the filter context
 	// to help reduce memory allocations.
 	ctx.fctx = &filter.Context{
-		OSM:                ctx.OSM,
 		WayMembership:      ctx.WayMembership,
 		RelationMembership: ctx.RelationMembership,
 	}
@@ -268,32 +265,32 @@ func newZenContext(data *osm.OSM, bound orb.Bound, z maptile.Zoom) *zenContext {
 	return ctx
 }
 
-func (ctx *zenContext) ComputeMembership() {
-	if ctx.OSM == nil {
+func (ctx *zenContext) ComputeMembership(data *osm.OSM) {
+	if data == nil {
 		return
 	}
 
 	// TODO: I wish you could pass all this stuff in.
 	// it's kind of messy as is.
-	nodes := make(map[osm.NodeID]*osm.Node, len(ctx.OSM.Nodes))
-	for _, n := range ctx.OSM.Nodes {
+	nodes := make(map[osm.NodeID]*osm.Node, len(data.Nodes))
+	for _, n := range data.Nodes {
 		nodes[n.ID] = n
 	}
 
-	ctx.WayMembership = make(map[osm.NodeID]osm.Ways)
-	for _, w := range ctx.OSM.Ways {
+	ctx.WayMembership = make(map[osm.NodeID][]osm.Tags)
+	for _, w := range data.Ways {
 		for _, wn := range w.Nodes {
 			if n, ok := nodes[wn.ID]; ok && len(n.Tags) == 0 {
 				continue
 			}
-			ctx.WayMembership[wn.ID] = append(ctx.WayMembership[wn.ID], w)
+			ctx.WayMembership[wn.ID] = append(ctx.WayMembership[wn.ID], w.Tags)
 		}
 	}
 
-	ctx.RelationMembership = make(map[osm.FeatureID]osm.Relations)
-	for _, r := range ctx.OSM.Relations {
+	ctx.RelationMembership = make(map[osm.FeatureID][]osm.Tags)
+	for _, r := range data.Relations {
 		for _, m := range r.Members {
-			ctx.RelationMembership[m.FeatureID()] = append(ctx.RelationMembership[m.FeatureID()], r)
+			ctx.RelationMembership[m.FeatureID()] = append(ctx.RelationMembership[m.FeatureID()], r.Tags)
 		}
 	}
 }

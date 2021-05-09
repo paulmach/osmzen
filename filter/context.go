@@ -19,9 +19,6 @@ type Context struct {
 	FeatureID osm.FeatureID
 	Geometry  orb.Geometry
 
-	// To compute ways and/or relations if needed
-	OSM *osm.OSM
-
 	Tags map[string]string
 
 	// OSMTags are used during post processing we need access
@@ -36,8 +33,8 @@ type Context struct {
 	ways      osm.Ways
 	relations osm.Relations
 
-	WayMembership      map[osm.NodeID]osm.Ways
-	RelationMembership map[osm.FeatureID]osm.Relations
+	WayMembership      map[osm.NodeID][]osm.Tags
+	RelationMembership map[osm.FeatureID][]osm.Tags
 }
 
 // NewContext creates a new filter.Context from an osmgeojson feature.
@@ -180,7 +177,7 @@ func (ctx *Context) MinZoom() float64 {
 	return ctx.minZoom
 }
 
-func (ctx *Context) wayMembership() osm.Ways {
+func (ctx *Context) wayMembership() []osm.Tags {
 	if ctx.FeatureID.Type() != osm.TypeNode {
 		return nil
 	}
@@ -189,61 +186,19 @@ func (ctx *Context) wayMembership() osm.Ways {
 		return ctx.WayMembership[ctx.FeatureID.NodeID()]
 	}
 
-	return ctx.computeWays()
-}
-
-func (ctx *Context) computeWays() osm.Ways {
-	if ctx.OSM == nil {
-		return nil
-	}
-
-	if ctx.ways != nil {
-		return ctx.ways // already computed
-	}
-
-	ctx.ways = make(osm.Ways, 0, 5)
-	for _, w := range ctx.OSM.Ways {
-		for _, n := range w.Nodes {
-			if n.FeatureID() == ctx.FeatureID {
-				ctx.ways = append(ctx.ways, w)
-				break
-			}
-		}
-	}
-
-	return ctx.ways
+	// membership unknown
+	return nil
 }
 
 // relationMembership returns the relations the element is a member of.
 // It can use the RelationMembership map if provided. This is useful
 // if evaluating many elements. Otherwise it computes it on demand
 // from the ctx.OSM if provided. If that also doesn't exist, returns nil/empty.
-func (ctx *Context) relationMembership() osm.Relations {
+func (ctx *Context) relationMembership() []osm.Tags {
 	if ctx.RelationMembership != nil {
 		return ctx.RelationMembership[ctx.FeatureID]
 	}
 
-	return ctx.computeRelations()
-}
-
-func (ctx *Context) computeRelations() osm.Relations {
-	if ctx.OSM == nil {
-		return nil
-	}
-
-	if ctx.relations != nil {
-		return ctx.relations // already computed
-	}
-
-	ctx.relations = make(osm.Relations, 0, 5)
-	for _, r := range ctx.OSM.Relations {
-		for _, m := range r.Members {
-			if m.FeatureID() == ctx.FeatureID {
-				ctx.relations = append(ctx.relations, r)
-				break
-			}
-		}
-	}
-
-	return ctx.relations
+	// membership unknown
+	return nil
 }

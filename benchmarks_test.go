@@ -239,16 +239,12 @@ func BenchmarkProcessGeoJSON(b *testing.B) {
 		b.Fatalf("convert failed: %v", err)
 	}
 
-	ctx := &zenContext{
-		Zoom:  tile.Z,
-		Bound: tile.Bound(),
-	}
-	ctx.ComputeMembership(data)
+	ctx := newZenContext(data, tile.Bound(), tile.Z)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := config.processGeoJSON(ctx, input, tile.Z)
+		_, err := config.processGeoJSON(ctx, input)
 		if err != nil {
 			b.Fatalf("procces failure: %v", err)
 		}

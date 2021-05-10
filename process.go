@@ -71,17 +71,45 @@ func (c *Config) ProcessElement(e osm.Element) (layer string, props geojson.Prop
 func (c *Config) process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (map[string]*geojson.FeatureCollection, error) {
 	input, err := convertToGeoJSON(data, bound)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	ctx := newZenContext(data, bound, z)
-	return c.processGeoJSON(ctx, input, z)
+	return c.processGeoJSON(ctx, input)
+}
+
+// ZenContext is used with ProcessFeatureCollection to pass in the extra
+// information needed for the processing.
+type ZenContext struct {
+	Zoom  maptile.Zoom
+	Bound orb.Bound
+
+	// NodeWayTags and FeatureRelationTags are optional. They are used
+	// to set special tags if ways are members of route relations, for example.
+	NodeWayTags         map[osm.NodeID][]osm.Tags
+	FeatureRelationTags map[osm.FeatureID][]osm.Tags
+}
+
+// ProcessFeatureCollection is an advanced function to take geojson already
+// formatted similar to what produced by osm/osmgeojson. This function can be
+// used to bypass the osm state.
+func (c *Config) ProcessFeatureCollection(
+	ctx *ZenContext,
+	input *geojson.FeatureCollection,
+) (map[string]*geojson.FeatureCollection, error) {
+	zctx := &zenContext{
+		Zoom:               ctx.Zoom,
+		Bound:              ctx.Bound,
+		WayMembership:      ctx.NodeWayTags,
+		RelationMembership: ctx.FeatureRelationTags,
+	}
+
+	return c.processGeoJSON(zctx, input)
 }
 
 func (c *Config) processGeoJSON(
 	ctx *zenContext,
 	input *geojson.FeatureCollection,
-	z maptile.Zoom,
 ) (map[string]*geojson.FeatureCollection, error) {
 	result := make(map[string]*geojson.FeatureCollection, len(c.Layers))
 	for _, name := range c.All {
@@ -99,7 +127,7 @@ func (c *Config) processGeoJSON(
 
 	// apply post processing
 	ppctx := &postprocess.Context{
-		Zoom:  float64(z),
+		Zoom:  float64(ctx.Zoom),
 		Bound: ctx.Bound,
 	}
 
@@ -129,7 +157,7 @@ func (c *Config) processGeoJSON(
 func (l *Layer) Process(data *osm.OSM, bound orb.Bound, z maptile.Zoom) (*geojson.FeatureCollection, error) {
 	input, err := convertToGeoJSON(data, bound)
 	if err != nil {
-		return nil, errors.WithStack(err)
+		return nil, err
 	}
 
 	ctx := newZenContext(data, bound, z)

@@ -1,8 +1,10 @@
 package osmzen
 
 import (
+	"embed"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 
 	"github.com/paulmach/osmzen/filter"
@@ -13,9 +15,15 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-// to copy the yaml data into the binary for easier loading.
-//go:generate go-bindata -pkg embeddedconfig -o embeddedconfig/config.go -prefix=config config/queries.yaml config/yaml/ config/spreadsheets/ config/spreadsheets/scale_rank/ config/spreadsheets/sort_rank/
-//go:generate gofmt -w embeddedconfig/config.go
+// DefaultConfig is the reference to yaml and csv files with the
+// default configuration of kind/kind_detail mappings. These
+// files are found in the config sub-directory.
+//go:embed config
+var DefaultConfig embed.FS
+
+type ReadFiler interface {
+	ReadFile(string) ([]byte, error)
+}
 
 // Config is the full queries.yaml config file for this library.
 type Config struct {
@@ -50,12 +58,13 @@ func Load(filename string) (*Config, error) {
 
 	dir, _ := path.Split(filename)
 	return loadConfig(data, func(name string) ([]byte, error) {
-		return ioutil.ReadFile(path.Join(dir, name))
+		return os.ReadFile(path.Join(dir, name))
 	})
 }
 
 // LoadEmbeddedConfig will load the config and layers using the compiled in assets.
-// Usage: config, err := osmzen.LoadEmbeddedConfig (embeddedconfig.Asset)
+//
+// Deprecated: use LoadDefaultConfig instead
 func LoadEmbeddedConfig(asset func(string) ([]byte, error)) (*Config, error) {
 	data, err := asset("queries.yaml")
 	if err != nil {
@@ -63,6 +72,18 @@ func LoadEmbeddedConfig(asset func(string) ([]byte, error)) (*Config, error) {
 	}
 
 	return loadConfig(data, asset)
+}
+
+// LoadDefaultConfig will load the default config embedded in this package.
+func LoadDefaultConfig() (*Config, error) {
+	data, err := DefaultConfig.ReadFile("config/queries.yaml")
+	if err != nil {
+		return nil, err
+	}
+
+	return loadConfig(data, func(name string) ([]byte, error) {
+		return DefaultConfig.ReadFile("config/" + name)
+	})
 }
 
 func loadConfig(data []byte, asset func(name string) ([]byte, error)) (*Config, error) {

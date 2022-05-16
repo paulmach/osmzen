@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/paulmach/osmzen"
-	"github.com/paulmach/osmzen/embeddedconfig"
 
 	"github.com/paulmach/osm"
 	"github.com/paulmach/osm/osmapi"
@@ -23,7 +22,7 @@ const Port = "8100"
 
 func main() {
 	// load and initialize the mapzen context using the default config files
-	config, err := osmzen.LoadEmbeddedConfig(embeddedconfig.Asset)
+	config, err := osmzen.LoadDefaultConfig()
 	if err != nil {
 		panic(err)
 	}

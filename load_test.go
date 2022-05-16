@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/paulmach/orb/maptile"
-	"github.com/paulmach/osmzen/embeddedconfig"
 	"github.com/paulmach/osmzen/filter"
 
 	"github.com/paulmach/osm"
@@ -13,7 +12,9 @@ import (
 )
 
 func TestLoadEmbeddedConfig(t *testing.T) {
-	config, err := LoadEmbeddedConfig(embeddedconfig.Asset)
+	config, err := LoadEmbeddedConfig(func(name string) ([]byte, error) {
+		return DefaultConfig.ReadFile("config/" + name)
+	})
 	if err != nil {
 		if err, ok := errors.Cause(err).(*filter.CompileError); ok {
 			t.Log(err.Error())
@@ -25,7 +26,21 @@ func TestLoadEmbeddedConfig(t *testing.T) {
 	}
 
 	testConfig(t, config)
+}
 
+func TestLoadDefaultConfig(t *testing.T) {
+	config, err := LoadDefaultConfig()
+	if err != nil {
+		if err, ok := errors.Cause(err).(*filter.CompileError); ok {
+			t.Log(err.Error())
+			t.Logf("yaml: \n%s", err.YAML())
+			t.Logf("%+v", err.Cause)
+		}
+
+		t.Fatalf("load error: %v", err)
+	}
+
+	testConfig(t, config)
 }
 
 func TestLoad(t *testing.T) {

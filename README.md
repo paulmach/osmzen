@@ -1,5 +1,4 @@
-osmzen [![CI](https://github.com/paulmach/osmzen/workflows/CI/badge.svg)](https://github.com/paulmach/osmzen/actions?query=workflow%3ACI+event%3Apush) [![Go Report Card](https://goreportcard.com/badge/github.com/paulmach/osmzen)](https://goreportcard.com/report/github.com/paulmach/osmzen) [![Go Reference](https://pkg.go.dev/badge/github.com/paulmach/osmzen.svg)](https://pkg.go.dev/github.com/paulmach/osmzen)
-======
+# osmzen [![CI](https://github.com/paulmach/osmzen/workflows/CI/badge.svg)](https://github.com/paulmach/osmzen/actions?query=workflow%3ACI+event%3Apush) [![Go Report Card](https://goreportcard.com/badge/github.com/paulmach/osmzen)](https://goreportcard.com/report/github.com/paulmach/osmzen) [![Go Reference](https://pkg.go.dev/badge/github.com/paulmach/osmzen.svg)](https://pkg.go.dev/github.com/paulmach/osmzen)
 
 This is a port of [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) developed by
 [Mapzen](https://mapzen.com/). It converts [Open Street Map](https://www.openstreetmap.org/) data
@@ -14,10 +13,10 @@ like tilezen/vector-datasource (and may others) are necessary.
 The port currently implements almost all features applicable to evaluating zoom 14+ tile data.
 These features include:
 
-* all filter, min_zoom and output logic defined in the `yaml/*.yaml` files,
-* all transforms that apply, implementation specific data transforms are skipped,
-* the CSV matcher post processor to set the `scale_rank` and `sort_rank` properties,
-* geometry clipping and label placement logic.
+-   all filter, min_zoom and output logic defined in the `yaml/*.yaml` files,
+-   all transforms that apply, implementation specific data transforms are skipped,
+-   the CSV matcher post processor to set the `scale_rank` and `sort_rank` properties,
+-   geometry clipping and label placement logic.
 
 A lot of post processors still need to be ported, but only a few of the missing ones apply
 to zooms 14+. Missing post processors include: landuse_kind intercuts, merging line strings,
@@ -36,50 +35,48 @@ unchanged, there a just a few minor changes to the post processor filtering in `
 The port is based off of [v1.8.0ish](https://github.com/tilezen/vector-datasource/releases/tag/v1.8.0)
 version of the vector-datasource.
 
-Usage
------
+## Usage
 
-1. Load and compile the `queries.yaml`, `yaml/*.yaml` and `spreadsheets/*_rank/*.csv` files. This can
-	be done by loading the files directly using the implied directory structure:
+1.  Load and compile the `queries.yaml`, `yaml/*.yaml` and `spreadsheets/*_rank/*.csv` files. This can
+    be done by loading the files directly using the implied directory structure:
 
-		config, err := osmzen.Load("config/queries.yaml")
+        config, err := osmzen.Load("config/queries.yaml")
 
-	or if you want to use the "official" ported config files but don't want to distribute them with
-	the binary you can make use of the `embeddedconfig` subpackage which uses
-	[go-bindata](https://github.com/jteeuwen/go-bindata) to "compile in" the files:
+    or if you want to use the "official" ported config files that are embedded into the binary
+    using the `embed` package from the standard library:
 
-		config, err := osmzen.LoadEmbeddedConfig(embeddedconfig.Asset)
+        config, err := osmzen.LoadDefaultConfig()
 
-	If there are mistakes in the YAML the error will contain a lot of information to help debug:
+    If there are mistakes in the YAML the error will contain a lot of information to help debug:
 
-		if err, ok := errors.Cause(err).(*filter.CompileError); ok {
-			log.Printf("error: %v", err.Error())
-			log.Printf("cause: %v", err.Cause)
-			log.Printf("yaml:\n%s", err.YAML()) // chunk of marshalled YAML with the issue
-		} else if err != nil {
-			log.Printf("other err: %v", err)
-		}
+        if err, ok := errors.Cause(err).(*filter.CompileError); ok {
+        	log.Printf("error: %v", err.Error())
+        	log.Printf("cause: %v", err.Cause)
+        	log.Printf("yaml:\n%s", err.YAML()) // chunk of marshalled YAML with the issue
+        } else if err != nil {
+        	log.Printf("other err: %v", err)
+        }
 
-2. Process some OSM data:
+2.  Process some OSM data:
 
-		data := osm.OSM{}
-		layers, err := config.Process(
-			data,
-			orb.Bound{Min: orb.Point{-180, -90}, Max: orb.Point{180, 90}},
-			zoom,
-		)
+        data := osm.OSM{}
+        layers, err := config.Process(
+        	data,
+        	orb.Bound{Min: orb.Point{-180, -90}, Max: orb.Point{180, 90}},
+        	zoom,
+        )
 
-		// layers is defined as `map[string]*geojson.FeatureCollection`
+        // layers is defined as `map[string]*geojson.FeatureCollection`
 
-	Layers can also be processed individually:
+    Layers can also be processed individually:
 
-		featureCollection, err := config.Layers["buildings"].Process(
-			data,
-			orb.Bound{Min: orb.Point{-180, -90}, Max: orb.Point{180, 90}},
-			zoom,
-		)
+        featureCollection, err := config.Layers["buildings"].Process(
+        	data,
+        	orb.Bound{Min: orb.Point{-180, -90}, Max: orb.Point{180, 90}},
+        	zoom,
+        )
 
-	The bound is necessary for clipping. Typically, set to the bound of the requested tile.
+    The bound is necessary for clipping. Typically, set to the bound of the requested tile.
 
 The result is a GeoJSON feature collection with `kind`, `kind_detail` etc. properties that
 are understood by [Mapzen house styles](https://mapzen.com/products/maps/).
@@ -98,7 +95,6 @@ import (
 	"fmt"
 
 	"github.com/paulmach/osmzen"
-	"github.com/paulmach/osmzen/embeddedconfig"
 
 	"github.com/paulmach/orb/maptile"
 	"github.com/paulmach/osm"
@@ -109,7 +105,7 @@ func main() {
 	tile := maptile.New(19613, 29310, 16)
 
 	// load osmzen config
-	config, _ := osmzen.LoadEmbeddedConfig(embeddedconfig.Asset)
+	config, _ := osmzen.LoadDefaultConfig()
 
 	// get osm data for a tile from the offical api.
 	bounds, _ := osm.NewBoundsFromTile(tile)
@@ -126,17 +122,16 @@ func main() {
 }
 ```
 
-Implementation details
-----------------------
+## Implementation details
 
 At a high level [tilezen/vector-datasource](https://github.com/tilezen/vector-datasource) filters and
 processes its data using the following steps:
 
 1. find relevant elements for a layer using the SQL queries defined in `data/{layer_name}.jinja`,
-2. filter the elements using filter *conditions* defined in `yaml/{layer_name}.yaml`,
-3. generate properties for each element using the matching filter's output *expressions*,
-4. apply *transforms* to each element independently,
-5. apply *post processes* to all the layers together.
+2. filter the elements using filter _conditions_ defined in `yaml/{layer_name}.yaml`,
+3. generate properties for each element using the matching filter's output _expressions_,
+4. apply _transforms_ to each element independently,
+5. apply _post processes_ to all the layers together.
 
 The transforms and post processes that apply to each layer and zoom are defined in `queries.yaml`.
 For a lot more details see the official tilezen/vector-datasource [project
@@ -160,22 +155,22 @@ The filters define a condition, yes/no matching, that evaluates into a boolean v
 step these are converted into concrete types that implement the `filter.Condition` interface. The
 interface is defined as:
 
-	type filter.Condition interface {
-		Eval(*filter.Context) bool
-	}
+    type filter.Condition interface {
+    	Eval(*filter.Context) bool
+    }
 
 The output for each filter defines what properties should be assigned to the element's GeoJSON
 feature. They output things such as booleans (is_tunnel), strings (kind), numbers (area) or nil to
 be ignored. The interface is defined as:
 
-	type fitler.Expression interface {
-		Eval(*filter.Context) interface{}
-	}
+    type fitler.Expression interface {
+    	Eval(*filter.Context) interface{}
+    }
 
-	type filter.NumExpression interface {
-		filter.Expression
-		EvalNum(*filter.Context) float64
-	}
+    type filter.NumExpression interface {
+    	filter.Expression
+    	EvalNum(*filter.Context) float64
+    }
 
 The `filter.NumExpression` is also implemented by expressions that must be a number (e.g. area,
 building height). Using it helps avoid a type indirection when we know we need numbers. For example
@@ -193,7 +188,7 @@ set of relations the original OSM element is a member of.
 
 While loading the config the **transforms** are matched to functions of the form:
 
-	func(*filter.Context, *geojson.Feature)
+    func(*filter.Context, *geojson.Feature)
 
 Transforms can only change a feature, they can't remove a feature if it's "bad" for any reason, like
 too small for the zoom. Transforms also don't know about other features, so they can't be used to
@@ -203,9 +198,9 @@ do things like fix one-way direction, abbreviate road names, etc.
 The **post processes** are compiled to check the parameters and data files. They are mapped to an
 object implementing the `postprocess.Function` interface defined as:
 
-	type postprocess.Function interface {
-		Eval(*postprocess.Context, map[string]*geojson.FeatureCollection)
-	}
+    type postprocess.Function interface {
+    	Eval(*postprocess.Context, map[string]*geojson.FeatureCollection)
+    }
 
 The function takes all the layers as input. Some examples of post processing are clipping to the
 tile bounds, setting sort_rank and scale_rank, removing duplicate features, removing small areas,
@@ -223,22 +218,22 @@ The evaluation proceeds in the following steps:
 
 1. Convert OSM data to GeoJSON
 
-	The data is run through [osm/osmgeojson](https://github.com/paulmach/osm/tree/master/osmgeojson)
-	which is a port of the [osmtogeojson](https://github.com/tyrasd/osmtogeojson) node.js library.
-	This groups nodes into ways and ways into polygons. For example, we don't care about the 4 nodes
-	that define a building, we just want the building polygon.
+    The data is run through [osm/osmgeojson](https://github.com/paulmach/osm/tree/master/osmgeojson)
+    which is a port of the [osmtogeojson](https://github.com/tyrasd/osmtogeojson) node.js library.
+    This groups nodes into ways and ways into polygons. For example, we don't care about the 4 nodes
+    that define a building, we just want the building polygon.
 
 2. Run each OSM element GeoJSON feature through the filters
 
-	We find the first filter in each layer to match and then compute the filter's outputs. Note,
-	that an element can match in multiple layers, for example a building polygon and a POI.
-	The input and output are both GeoJSON, however, the input contains properties based on OSM tags,
-	but the output has properties from the filter like the `kind` and `kind_detail` etc.
+    We find the first filter in each layer to match and then compute the filter's outputs. Note,
+    that an element can match in multiple layers, for example a building polygon and a POI.
+    The input and output are both GeoJSON, however, the input contains properties based on OSM tags,
+    but the output has properties from the filter like the `kind` and `kind_detail` etc.
 
 3. Apply the transforms
 
-	The new GeoJSON object is updated a bit. This can include reversing the geometry or simplifying
-	the name.
+    The new GeoJSON object is updated a bit. This can include reversing the geometry or simplifying
+    the name.
 
 4. Apply the post processes to all the layers.
 
@@ -274,7 +269,7 @@ No concurrency is used in this package.
 
 #### This library makes use of the following packages:
 
-* [github.com/pkg/errors](https://github.com/pkg/errors) - for rich errors with stack traces
-* [gopkg.in/yaml.v2](http://gopkg.in/yaml.v2) - YAML parsing
-* [github.com/paulmach/orb](https://github.com/paulmach/orb) - geometry area, centroid, clipping, etc.
-* [github.com/paulmach/osm](https://github.com/paulmach/osm)
+-   [github.com/pkg/errors](https://github.com/pkg/errors) - for rich errors with stack traces
+-   [gopkg.in/yaml.v2](http://gopkg.in/yaml.v2) - YAML parsing
+-   [github.com/paulmach/orb](https://github.com/paulmach/orb) - geometry area, centroid, clipping, etc.
+-   [github.com/paulmach/osm](https://github.com/paulmach/osm)

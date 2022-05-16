@@ -1,6 +1,6 @@
 module github.com/paulmach/osmzen
 
-go 1.13
+go 1.16
 
 require (
 	github.com/paulmach/orb v0.1.5

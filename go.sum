@@ -29,8 +29,8 @@ github.com/kisielk/errcheck v1.2.0/go.mod h1:/BMXB+zMLi60iA8Vv6Ksmxu/1UDYcXs4uQL
 github.com/kisielk/errcheck v1.5.0/go.mod h1:pFxgyoBC7bSaBwPgfKdkLd5X25qrDl4LWUI2bnpBCr8=
 github.com/kisielk/gotool v1.0.0/go.mod h1:XhKaO+MFFWcvkIS/tQcRk01m1F5IRFswLeQ+oQHNcck=
 github.com/paulmach/orb v0.1.6/go.mod h1:pPwxxs3zoAyosNSbNKn1jiXV2+oovRDObDKfTvRegDI=
-github.com/paulmach/orb v0.7.0 h1:IKwVzjXhMOU/VY8FEqfDT+0n/YwFJuGcpWSFk4KQys0=
-github.com/paulmach/orb v0.7.0/go.mod h1:FWRlTgl88VI1RBx/MkrwWDRhQ96ctqMCh8boXhmqB/A=
+github.com/paulmach/orb v0.6.0 h1:QqsQkeYM3zzr3ANUHWBoo8zvK1CATO4G9pYmKoCAgnM=
+github.com/paulmach/orb v0.6.0/go.mod h1:FWRlTgl88VI1RBx/MkrwWDRhQ96ctqMCh8boXhmqB/A=
 github.com/paulmach/osm v0.3.0 h1:KUtQY1w0Pr6KIqBnImooSGGJiNPLLn9MYDFgAMOUW+Y=
 github.com/paulmach/osm v0.3.0/go.mod h1:0eWGRNhfju/xNPe0OHwXHYA7KMzg5HqYLQYPoxd7Epg=
 github.com/paulmach/protoscan v0.2.1/go.mod h1:SpcSwydNLrxUGSDvXvO0P7g7AuhJ7lcKfDlhJCDw2gY=
